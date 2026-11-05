@@ -133,17 +133,18 @@ const inRC=(x,z)=>free(x,z,.02);
 function losClear(ax,az,bx_,bz){const n=Math.ceil(Math.hypot(bx_-ax,bz-az)/.4);for(let i=1;i<n;i++)if(!free(ax+(bx_-ax)*i/n,az+(bz-az)*i/n,.02))return false;return true}
 // mesh helpers: a textured box with UVs scaled to world size (texture repeats every `tile` metres)
 function tbox(w,h,d,mat,x,y,z,tile,opts){opts=opts||{};const g=new THREE.BoxGeometry(w,h,d),u=g.attributes.uv,D=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]],tl=tile||2;for(let i=0;i<24;i++){const f=i>>2;u.setXY(i,u.getX(i)*D[f][0]/tl,u.getY(i)*D[f][1]/tl)}
- const m=new THREE.Mesh(g,mat);m.position.set(x,y,z);if(opts.ry)m.rotation.y=opts.ry;m.castShadow=opts.cast!==false;m.receiveShadow=true;scene.add(m);if(opts.hit!==false)COL.push(m);if(opts.solid)solid(x-w/2,z-d/2,x+w/2,z+d/2,opts.solid);return m}
+ const m=new THREE.Mesh(g,mat);if(STAT)m.userData.st=1;m.position.set(x,y,z);if(opts.ry)m.rotation.y=opts.ry;m.castShadow=opts.cast!==false;m.receiveShadow=true;scene.add(m);if(opts.hit!==false)COL.push(m);if(opts.solid)solid(x-w/2,z-d/2,x+w/2,z+d/2,opts.solid);return m}
 const bx=(w,h,d,c,x,y,z,o)=>tbox(w,h,d,typeof c==='number'?new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:.15,envMap:ENV,envMapIntensity:.3}):c,x,y,z,1,o);
-function plane(w,d,mat,x,y,z,rx,ry,tile){const g=new THREE.PlaneGeometry(w,d),u=g.attributes.uv,tl=tile||2;for(let i=0;i<u.count;i++)u.setXY(i,u.getX(i)*w/tl,u.getY(i)*d/tl);const m=new THREE.Mesh(g,mat);m.rotation.set(rx||0,ry||0,0);m.position.set(x,y,z);m.receiveShadow=true;scene.add(m);return m}
+function plane(w,d,mat,x,y,z,rx,ry,tile){const g=new THREE.PlaneGeometry(w,d),u=g.attributes.uv,tl=tile||2;for(let i=0;i<u.count;i++)u.setXY(i,u.getX(i)*w/tl,u.getY(i)*d/tl);const m=new THREE.Mesh(g,mat);if(STAT)m.userData.st=1;m.rotation.set(rx||0,ry||0,0);m.position.set(x,y,z);m.receiveShadow=true;scene.add(m);return m}
 // walls along x (at z) or along z (at x) with door/window gaps: gaps=[[a,b,top]] ; top=0 -> full-height gap
-const WT=.3;
+const WT=.3;let STAT=0;const statWrap=f=>function(){STAT++;try{return f.apply(this,arguments)}finally{STAT--}};
 const AOT=mkCv(8,128,(x,w,h)=>{const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#000');g.addColorStop(1,'#fff');x.fillStyle=g;x.fillRect(0,0,w,h)});AOT.encoding=THREE.LinearEncoding;
 const AOM=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.62,alphaMap:AOT,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
-function aoStrip(x,z,len,alongX){if(len<.4)return;for(const s of[-1,1]){const m=new THREE.Mesh(new THREE.PlaneGeometry(len,.7),AOM);m.position.set(alongX?x:x+s*(WT/2+.006),.35,alongX?z+s*(WT/2+.006):z);m.rotation.y=alongX?(s>0?0:PI):(s>0?PI/2:-PI/2);scene.add(m);const f=new THREE.Mesh(new THREE.PlaneGeometry(len,.55).rotateX(-PI/2),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.5,alphaMap:AOT,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));f.position.set(alongX?x:x+s*(WT/2+.27),.009,alongX?z+s*(WT/2+.27):z);if(alongX)f.rotation.y=s>0?PI:0;else f.rotation.y=s>0?-PI/2:PI/2;scene.add(f)}}
+function aoStrip(x,z,len,alongX){if(len<.4)return;for(const s of[-1,1]){const m=new THREE.Mesh(new THREE.PlaneGeometry(len,.7),AOM);m.position.set(alongX?x:x+s*(WT/2+.006),.35,alongX?z+s*(WT/2+.006):z);m.rotation.y=alongX?(s>0?0:PI):(s>0?PI/2:-PI/2);m.userData.st=1;scene.add(m);const f=new THREE.Mesh(new THREE.PlaneGeometry(len,.55).rotateX(-PI/2),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.5,alphaMap:AOT,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));f.position.set(alongX?x:x+s*(WT/2+.27),.009,alongX?z+s*(WT/2+.27):z);if(alongX)f.rotation.y=s>0?PI:0;else f.rotation.y=s>0?-PI/2:PI/2;f.userData.st=1;scene.add(f)}}
 function wallX(z,x0,x1,h,mat,gaps,tile){let p=x0;const gs=(gaps||[]).slice().sort((a,b)=>a[0]-b[0]);gs.concat([[x1,x1,0]]).forEach(g=>{if(g[0]>p){tbox(g[0]-p,h,WT,mat,(p+g[0])/2,h/2,z,tile,{solid:'wall'});aoStrip((p+g[0])/2,z,g[0]-p,1)}if(g[2]&&g[1]>g[0]){tbox(g[1]-g[0],h-g[2],WT,mat,(g[0]+g[1])/2,g[2]+(h-g[2])/2,z,tile);if(g[3])tbox(g[1]-g[0],g[3],WT,mat,(g[0]+g[1])/2,g[3]/2,z,tile,{solid:'wall'})}p=Math.max(p,g[1])})}
 function wallZ(x,z0,z1,h,mat,gaps,tile){let p=z0;const gs=(gaps||[]).slice().sort((a,b)=>a[0]-b[0]);gs.concat([[z1,z1,0]]).forEach(g=>{if(g[0]>p){tbox(WT,h,g[0]-p,mat,x,h/2,(p+g[0])/2,tile,{solid:'wall'});aoStrip(x,(p+g[0])/2,g[0]-p,0)}if(g[2]&&g[1]>g[0]){tbox(WT,h-g[2],g[1]-g[0],mat,x,g[2]+(h-g[2])/2,(g[0]+g[1])/2,tile);if(g[3])tbox(WT,g[3],g[1]-g[0],mat,x,g[3]/2,(g[0]+g[1])/2,tile,{solid:'wall'})}p=Math.max(p,g[1])})}
 function floorCeil(x0,z0,x1,z1,h,fm,cm,tf,tc){const w=x1-x0,d=z1-z0;const f=plane(w,d,fm,x0+w/2,0,z0+d/2,-PI/2,0,tf||3);COL.push(f);const c=plane(w,d,cm,x0+w/2,h,z0+d/2,PI/2,0,tc||1.2);COL.push(c);return{f,c}}
+wallX=statWrap(wallX);wallZ=statWrap(wallZ);floorCeil=statWrap(floorCeil);
 // lights: fixture mesh + optional point light; tag drives flicker behaviour in the loop
 const LT=[];
 function lamp(x,y,z,c,i,d,tag,len){let l=null;if(i){l=new THREE.PointLight(c,i,d||16,2);l.position.set(x,y-.35,z);scene.add(l)}const m=new THREE.MeshBasicMaterial({color:c});const fx=new THREE.Mesh(new THREE.BoxGeometry(len||1.3,.05,.22),m);fx.position.set(x,y-.03,z);scene.add(fx);bx(len?len+.1:1.4,.08,.3,0x2a2c2e,x,y-.0,z,{hit:false,cast:false});
@@ -451,7 +452,7 @@ Object.assign(SND,{
 // ---------- the voice: a warbling, formant-filtered radio voice (no real words), with subtitles
 function voice(sec,vx,vz){try{const a=AU(),t0=a.currentTime,s=spat(vx==null?40:vx,vz==null?8.5:vz,1.2),b=bus({p:s.p,v:Math.max(.55,s.v),w:.35});
  const ri=a.createGain(),hp=a.createBiquadFilter(),lp=a.createBiquadFilter(),ws=a.createWaveShaper();hp.type='highpass';hp.frequency.value=380;lp.type='lowpass';lp.frequency.value=3200;const c=new Float32Array(256);for(let i=0;i<256;i++)c[i]=Math.tanh((i/128-1)*3);ws.curve=c;ri.connect(hp);hp.connect(lp);lp.connect(ws);ws.connect(b);
- const end=t0+sec;let t=t0;const pit=74+R()*10;
+ const end=t0+sec;let t=t0;const pit=(74+R()*10)*VP;
  while(t<end){const syl=.07+R()*.1,f1=[400,550,700,300][R()*4|0],f2=[900,1500,2100,2400][R()*4|0],o=a.createOscillator(),e=a.createGain();o.type='sawtooth';o.frequency.setValueAtTime(pit,t);o.frequency.linearRampToValueAtTime(pit*(.88+R()*.25),t+syl);e.gain.setValueAtTime(.0001,t);e.gain.linearRampToValueAtTime(1.6,t+.015);e.gain.setTargetAtTime(.0001,t+syl*.7,.02);o.connect(e);
   [[f1,1],[f2,.6]].forEach(q=>{const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=q[0];f.Q.value=5;const gg=a.createGain();gg.gain.value=q[1];e.connect(f);f.connect(gg);gg.connect(ri)});
   o.start(t);o.stop(t+syl+.1);t+=syl+(R()<.18?.1+R()*.15:.015+R()*.03)}
@@ -863,6 +864,7 @@ const WARDM=PM(rep(T_.wall,1,1),{color:0xd8c8b8,roughness:.9});
 function ceilHoles(x0,z0,x1,z1,h,mat,holes){const xs=[x0,x1],zs=[z0,z1];holes.forEach(o=>{xs.push(o[0]-o[2],o[0]+o[2]);zs.push(o[1]-o[2],o[1]+o[2])});xs.sort((a,b)=>a-b);zs.sort((a,b)=>a-b);
  for(let i=0;i<xs.length-1;i++)for(let j=0;j<zs.length-1;j++){const ax=xs[i],bx_=xs[i+1],az=zs[j],bz=zs[j+1];if(bx_-ax<.01||bz-az<.01)continue;const cx=(ax+bx_)/2,cz=(az+bz)/2;if(holes.some(o=>Math.abs(cx-o[0])<o[2]&&Math.abs(cz-o[1])<o[2]))continue;const c=plane(bx_-ax,bz-az,mat,cx,h,cz,PI/2,0,1.2);COL.push(c)}}
 function room(x0,z0,x1,z1,h,wm,fm,cm,holes){const f=plane(x1-x0,z1-z0,fm,(x0+x1)/2,0,(z0+z1)/2,-PI/2,0,2);COL.push(f);ceilHoles(x0,z0,x1,z1,h,cm,holes||[])}
+room=statWrap(room);ceilHoles=statWrap(ceilHoles);
 // ---------- the shutter out of Block 457, and maintenance corridor M-4 (caved in at z -15.5)
 const SHUT=tbox(1.6,2.6,.25,MS,62.6,1.3,-8,1);const SHUTBOX=solid(61.8,-8.2,63.4,-7.8,'shutter');tbox(1.9,.25,.3,MHZ,62.6,2.72,-7.85,1,{hit:false});
 sign('MAINTENANCE  M-4','TO LIGHT CONTAINMENT · CHILD DEVELOPMENT',62.6,3.3,-7.82,0,1.7,'#1c2226');
@@ -1894,7 +1896,6 @@ function perfPass(){
  // only things bigger than a shoebox cast flashlight shadows
  const s=new V3();scene.updateMatrixWorld(true);scene.traverse(o=>{if(!o.isMesh||!o.castShadow)return;if(!o.geometry.boundingSphere)o.geometry.computeBoundingSphere();o.getWorldScale(s);if(o.geometry.boundingSphere.radius*Math.max(s.x,s.y,s.z)<.3)o.castShadow=false});
  cam.far=44;cam.updateProjectionMatrix();console.log('perf: merged',merged,'materials; managed lights',LMAN.length)}
-setTimeout(perfPass,0);
 
 // ---------- touch controls
 const isTouch=matchMedia('(pointer:coarse)').matches||('ontouchstart' in window);let tsx=0,tsy=0,stkId=null,lkId=null,lkX=0,lkY=0,tchOn=0;
@@ -1928,7 +1929,7 @@ function post(dt){poolTick();if(!POST){rd.render(scene,cam);return}const p=POST,
  rd.setRenderTarget(p.rt);rd.render(scene,cam);
  p.mb.uniforms.t.value=p.rt.texture;p.q.material=p.mb;rd.setRenderTarget(p.a);rd.render(p.s,p.c);
  for(let i=0;i<2;i++){const k=i?2.4:1;p.mu.uniforms.t.value=p.a.texture;p.mu.uniforms.d.value.set(k/p.a.width,0);p.q.material=p.mu;rd.setRenderTarget(p.b);rd.render(p.s,p.c);p.mu.uniforms.t.value=p.b.texture;p.mu.uniforms.d.value.set(0,k/p.a.height);rd.setRenderTarget(p.a);rd.render(p.s,p.c)}
- u.t.value=p.rt.texture;u.b.value=p.a.texture;u.bl.value=OPT.bloom?.35:0;u.ex.value=1.12*OPT.bright;u.tm.value=gt%100;u.gr.value=OPT.grain?.022:0;
+ u.t.value=p.rt.texture;u.b.value=p.a.texture;u.bl.value=OPT.bloom?.35:0;u.ex.value=1.12*OPT.bright*GRADE.ex;u.tm.value=gt%100;u.gr.value=OPT.grain?.022:0;
  u.mb.value=OPT.mblur?Math.min(.1,(sp>4.5?.022:0)+shk*.3+(typeof impulse==='number'?impulse:0)):0;u.ca.value=.008+shk*.06+hurtT*.03;u.hurt.value=hurtT*.45;u.des.value=.24+(HP<35?(35-HP)/35*.5:0);
  p.q.material=p.mc;rd.setRenderTarget(null);rd.render(p.s,p.c)}
 // ---------- options wiring
@@ -2056,7 +2057,7 @@ function frame(){requestAnimationFrame(frame);let dt=Math.min(clk.getDelta(),.05
  LT.forEach(o=>{if(!o.l)return;if(o.tag==='flick')o.l.intensity=R()<.04?.05:o.b*(.85+R()*.15);else if(o.tag==='emerg'){const v=.5+.5*Math.sin(gt*2.6);o.l.intensity=o.b*v;o.sp.material.opacity=.2+.5*v}});BEAC.forEach((b,i)=>b.rotation.y+=dt*(3.5+i*.4));
  fl.intensity=fOn?(R()<.006?.3:1.7):0;
  if((flk-=dt)<0){flk=.08;drawTV(gt);if(P.x<9||ph===1){drawMon(monT++%4,gt);drawMon(monT++%4,gt)}}
- wpTick();updP(dt);updS(dt);updDebris(dt);dustT(dt);post(dt)}
+ xTick(dt,ctrl);wpTick();updP(dt);updS(dt);updDebris(dt);dustT(dt);post(dt)}
 let enteredBlock=0;
 // objective marker: a small diamond with the distance, pointing at whatever the story needs next
 const WPV=new V3();
@@ -2065,8 +2066,635 @@ function wpTarget(){if(ph!==2||dead)return null;
  if(!power&&!hasExt)return[15.4,1.2,8.2];if(!power)return[21.4,1.4,8.6];if(!obsDone)return[30,1.6,5];if(!fightOn&&BSTG<=0&&!enteredBlock)return[38,1.6,2.1];
  if(fightOn&&hasExt&&EXT.p<20){let b=null,bd=1e9;HOSES.forEach(h=>{const d=Math.hypot(h.x-P.x,h.z-P.z);if(d<bd){bd=d;b=h}});return[b.x,1.3,b.z]}
  if(BSTG===1&&fightOn){let b=null,bd=1e9;VALVES.forEach(v=>{if(v.open)return;const d=Math.hypot(v.x-P.x,v.z-P.z);if(d<bd){bd=d;b=v}});return b?[b.x,1.4,b.z]:null}
- if(BSTG===2&&fightOn&&!delugeOn)return[65.4,1.6,4.5];return C2wp()}
+ if(BSTG===2&&fightOn&&!delugeOn)return[65.4,1.6,4.5];return C2wp()||XWP()}
 function wpTick(){const t=wpTarget(),e=$('wp');if(!t){e.style.display='none';return}WPV.set(t[0],t[1],t[2]);const d=Math.hypot(t[0]-P.x,t[2]-P.z);if(d<2.4){e.style.display='none';return}WPV.project(cam);let sx=WPV.x,sy=WPV.y;if(WPV.z>1){sx=-sx;sy=-1}sx=clamp(sx,-.9,.9);sy=clamp(sy,-.85,.85);e.style.display='block';e.style.left=((sx+1)/2*innerWidth)+'px';e.style.top=((1-sy)/2*innerHeight)+'px';e.lastChild.textContent=(d|0)+' m'}
-frame();
+</script>
+<script>
 
+// =====================================================================
+// =====================================================================
+//  PART TWO: engine upgrades, chapter select, Chapters III and IV, the endings
+// =====================================================================
+// =====================================================================
+const XT=[];                       // per-frame tickers added by this part: f(dt,ctrl)
+let XWPF=null;                     // objective marker for the current chapter
+function XWP(){return XWPF?XWPF():null}
+RAY.layers.enableAll();            // darts still hit walls that the culler has hidden
+
+// ---------- PERFORMANCE v2: static world meshes further than R from the camera are skipped (layer 1)
+const CULL={list:[],R:30,t:0,lx:1e9,lz:1e9,ly:1e9};
+// static batching: level-shell meshes (walls, floors, ceilings, contact-shadow strips) merged per material per 16 m cell
+function staticMerge(){const groups=new Map(),cell=16,c=new V3();scene.updateMatrixWorld(true);
+ scene.children.slice().forEach(o=>{if(!o.isMesh||!o.userData.st||!o.visible||Array.isArray(o.material))return;const g=o.geometry;if(!g.boundingSphere)g.computeBoundingSphere();c.copy(g.boundingSphere.center).applyMatrix4(o.matrixWorld);
+  const k=o.material.uuid+'|'+(g.type==='BoxGeometry'?'b':'p')+'|'+Math.floor(c.x/cell)+','+Math.floor(c.z/cell)+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0)+'|'+o.renderOrder;let L=groups.get(k);if(!L)groups.set(k,L=[]);L.push(o)});
+ let made=0,removed=0;const colSet=new Set(COL);groups.forEach(list=>{if(list.length<2)return;const G=mergeG(list.map(o=>[o.geometry,o.matrixWorld.clone(),new THREE.Color(1,1,1)]));G.deleteAttribute('color');if(list[0].geometry.type==='BoxGeometry')G.type='BoxGeometry';
+  const M=new THREE.Mesh(G,list[0].material);M.castShadow=list[0].castShadow;M.receiveShadow=list[0].receiveShadow;M.renderOrder=list[0].renderOrder;scene.add(M);made++;let hit=0;
+  list.forEach(o=>{scene.remove(o);if(colSet.has(o)){hit=1;colSet.delete(o)}removed++});if(hit)colSet.add(M)});
+ COL.length=0;colSet.forEach(o=>COL.push(o));console.log('perf: batched',removed,'static meshes into',made)}
+function cullInit(){CULL.list.length=0;scene.updateMatrixWorld(true);const s=new THREE.Sphere(),bb=new THREE.Box3();
+ scene.children.forEach(o=>{if(o.userData.nocull||o.layers.mask!==1||o.isCamera||o.isLight||o.isPoints)return;
+  if(o.isMesh||o.isSprite){if(o.frustumCulled===false)return;const g=o.geometry;if(!g)return;if(!g.boundingSphere)g.computeBoundingSphere();s.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);CULL.list.push({o,x:s.center.x,y:s.center.y,z:s.center.z,r:s.radius});return}
+  // whole models (characters, bears, props built as groups): cull them as one, by their bounds
+  if(o.children.length&&(o.isGroup||o.type==='Object3D')){let ok=true;o.traverse(c=>{if(c.isCamera||c.isLight||c.layers.mask!==1)ok=false});if(!ok)return;bb.setFromObject(o);if(bb.isEmpty())return;bb.getBoundingSphere(s);CULL.list.push({o,grp:1,x:s.center.x,y:s.center.y,z:s.center.z,r:s.radius,v:1})}});
+ CULL.lx=1e9;console.log('perf: culling',CULL.list.length,'static meshes')}
+function cullTick(dt){const c=cam.position;CULL.t-=dt;if(Math.hypot(c.x-CULL.lx,c.z-CULL.lz,c.y-CULL.ly)<.6&&CULL.t>0)return;CULL.t=.3;CULL.lx=c.x;CULL.lz=c.z;CULL.ly=c.y;
+ const R=CULL.R;for(const e of CULL.list){const dx=e.x-c.x,dy=e.y-c.y,dz=e.z-c.z,re=e.r<.45?R*.45:e.r<1.4?R*.68:e.r<3?R*.85:R,v=Math.sqrt(dx*dx+dy*dy+dz*dz)-e.r<re?1:2;if(e.grp){if(e.v!==v){e.v=v;e.o.traverse(q=>{q.layers.mask=v})}}else e.o.layers.mask=v}}
+
+// ---------- QUALITY presets + dynamic resolution
+if(OPT.q==null)OPT.q=isTouch?0:1;if(OPT.dr==null)OPT.dr=1;
+const QL=[{n:'LOW',pr:.85,sh:0,ms:0,R:26},{n:'MEDIUM',pr:1.1,sh:1024,ms:2,R:34},{n:'HIGH',pr:1.5,sh:2048,ms:4,R:42}];
+const DRS={s:1,acc:0,n:0,t:0,cool:2};
+function applyQ(){const q=QL[OPT.q]||QL[1];CULL.R=q.R;CULL.lx=1e9;
+ fl.castShadow=q.sh>0;fl.shadow.camera.far=20;fl.shadow.camera.updateProjectionMatrix();if(q.sh&&fl.shadow.mapSize.x!==q.sh){fl.shadow.mapSize.set(q.sh,q.sh);if(fl.shadow.map){fl.shadow.map.dispose();fl.shadow.map=null}}
+ if(POST&&POST.rt&&POST.rt.samples!==undefined&&POST.rt.samples!==q.ms){POST.rt.samples=q.ms;POST.rt.dispose()}
+ setPR()}
+function setPR(){const q=QL[OPT.q]||QL[1];rd.setPixelRatio(Math.max(.5,Math.min(devicePixelRatio||1,q.pr)*DRS.s));resize()}
+function drTick(rdt){if(!OPT.dr||ph<1)return;DRS.acc+=rdt;DRS.n++;DRS.t+=rdt;if(DRS.t<1.2)return;const avg=DRS.acc/DRS.n;DRS.acc=DRS.n=DRS.t=0;if(DRS.cool>0){DRS.cool--;return}
+ if(avg>.024&&DRS.s>.6){DRS.s=Math.max(.6,DRS.s-.1);setPR();DRS.cool=1}else if(avg<.0175&&DRS.s<1){DRS.s=Math.min(1,DRS.s+.05);setPR();DRS.cool=2}}
+{// options panel: quality + dynamic resolution
+ const pn=$('op').querySelector('.pn'),bk=$('opx');
+ const l1=document.createElement('label');l1.innerHTML='GRAPHICS QUALITY <span><b id="o_q" class="mi" style="display:inline-block;margin:0;padding:3px 12px;font-size:13px;border-color:#a33"></b></span>';pn.insertBefore(l1,bk);
+ const l2=document.createElement('label');l2.innerHTML='DYNAMIC RESOLUTION <input id="o_dr" type="checkbox">';pn.insertBefore(l2,bk);
+ const qs=()=>{$('o_q').textContent=QL[OPT.q].n};qs();$('o_q').onclick=e=>{e.stopPropagation();OPT.q=(OPT.q+1)%3;qs();saveOpt();applyQ()};
+ $('o_dr').checked=!!OPT.dr;$('o_dr').onchange=()=>{OPT.dr=$('o_dr').checked?1:0;if(!OPT.dr){DRS.s=1;setPR()}saveOpt()}}
+
+// ---------- GRAPHICS: per-chapter grade (shadow/highlight split-tone, saturation, exposure trim) eased over time
+const GRADE={st:new V3(.86,.98,.96),ht:new V3(1.06,1,.88),de:0,ex:1,tst:new V3(.86,.98,.96),tht:new V3(1.06,1,.88),tde:0,tex:1};
+function grade(st,ht,de,ex){GRADE.tst.set(...st);GRADE.tht.set(...ht);GRADE.tde=de||0;GRADE.tex=ex||1}
+if(POST){const u=POST.mc.uniforms;u.st={value:GRADE.st};u.ht={value:GRADE.ht};u.dx={value:0};
+ // cheaper composite: one CA tap (3 fetches) unless motion blur is actually active, plus uniform-driven split-toning
+ POST.mc.fragmentShader=POST.mc.fragmentShader.replace('uniform float bl,','uniform vec3 st,ht;uniform float dx,bl,')
+  .replace('vec2 dir=c*mb;for(int i=0;i<8;i++){float k=float(i)/8.;vec2 u=vUv-dir*k;vec2 o=c*ca*r2*(1.+k);col+=vec3(texture2D(t,u+o).r,texture2D(t,u).g,texture2D(t,u-o).b);}col/=8.;',
+   'if(mb<.0005){vec2 o=c*ca*r2;col=vec3(texture2D(t,vUv+o).r,texture2D(t,vUv).g,texture2D(t,vUv-o).b);}else{vec2 dir=c*mb;for(int i=0;i<8;i++){float k=float(i)/8.;vec2 u=vUv-dir*k;vec2 o=c*ca*r2*(1.+k);col+=vec3(texture2D(t,u+o).r,texture2D(t,u).g,texture2D(t,u-o).b);}col/=8.;}')
+  .replace('col*=mix(vec3(.86,.98,.96),vec3(1.06,1.,.88),smoothstep(.12,.7,l));','col*=mix(st,ht,smoothstep(.12,.7,l));col=mix(col,vec3(l),dx);');
+ POST.mc.needsUpdate=true}
+function gradeTick(dt){const k=Math.min(1,dt*.8);GRADE.st.lerp(GRADE.tst,k);GRADE.ht.lerp(GRADE.tht,k);GRADE.de+=(GRADE.tde-GRADE.de)*k;GRADE.ex+=(GRADE.tex-GRADE.ex)*k;
+ if(POST)POST.mc.uniforms.dx.value=GRADE.de}
+// lit motes: dust that only shows inside the flashlight beam, so the beam reads in the dark
+const MOTN=360,motG=new THREE.BufferGeometry(),motP=new Float32Array(MOTN*3),motC=new Float32Array(MOTN*3),motV=new Float32Array(MOTN*3);
+for(let i=0;i<MOTN;i++){motP[i*3]=rnd(-6,6);motP[i*3+1]=rnd(-2,2);motP[i*3+2]=rnd(-6,6);motV[i*3]=rnd(-.05,.05);motV[i*3+1]=rnd(-.03,.03);motV[i*3+2]=rnd(-.05,.05)}
+motG.setAttribute('position',new THREE.BufferAttribute(motP,3));motG.setAttribute('color',new THREE.BufferAttribute(motC,3));
+const MOTES=new THREE.Points(motG,new THREE.PointsMaterial({size:.03,map:GLT,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));MOTES.frustumCulled=false;scene.add(MOTES);
+const _mf=new V3(),_mo=new V3();let MOTEK=0;
+function moteTick(dt){MOTES.visible=MOTEK>.01&&fOn&&ph>=2;if(!MOTES.visible)return;cam.getWorldDirection(_mf);_mo.copy(cam.position);const cs=Math.cos(.42);
+ for(let i=0;i<MOTN;i++){const j=i*3;let x=motP[j]+motV[j]*dt,y=motP[j+1]+motV[j+1]*dt+Math.sin(gt*.6+i)*.0015,z=motP[j+2]+motV[j+2]*dt;
+  if(x-_mo.x>6)x-=12;else if(x-_mo.x<-6)x+=12;if(z-_mo.z>6)z-=12;else if(z-_mo.z<-6)z+=12;if(y-_mo.y>2.2)y-=4.4;else if(y-_mo.y<-2.2)y+=4.4;motP[j]=x;motP[j+1]=y;motP[j+2]=z;
+  const dx=x-_mo.x,dy=y-_mo.y,dz=z-_mo.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz)||1,a=(dx*_mf.x+dy*_mf.y+dz*_mf.z)/d;
+  const v=a>cs?MOTEK*Math.min(1,(a-cs)/(1-cs)*3)*Math.max(0,1-d/6.5)*(d>.35?1:0):0;motC[j]=v*.95;motC[j+1]=v*.97;motC[j+2]=v}
+ motG.attributes.position.needsUpdate=motG.attributes.color.needsUpdate=true}
+
+// ---------- shared: voices with a pitch, sounds for the new creatures
+let VP=1;
+function say2(name,vp,L,where,done){SPK=name;VP=vp;talk(L,where,()=>{VP=1;done&&done()})}
+const _dsay=dsay,_dsay0=dsay0;dsay=(L,d)=>{VP=1;_dsay(L,d)};dsay0=(L,d)=>{VP=1;_dsay0(L,d)};
+function radio(L,done){VP=1;SPK='THE DOCTOR (RADIO)';talk(L,[P.x+.01,P.z],done)}
+Object.assign(SND,{
+ skit(o){const t=AC.currentTime,b=bus(W_(o,.15));for(let i=0;i<5+R()*4;i++)N(t+i*.025+R()*.01,.018,'bandpass',2200+R()*3000,1400,3,.22+R()*.2,b,.0005)},
+ hiss(o){const t=AC.currentTime,b=bus(W_(o,.3));N(t,.8,'highpass',2600,7000,.7,.45,b,.35);T(t,.8,180,90,'sawtooth',.03,b,.3)},
+ shriek(o){const t=AC.currentTime,b=bus(W_(o,.5));[2400,3100,3900].forEach((f,i)=>T(t+i*.03,.6,f,f*.6,'sawtooth',.05,b,.01));N(t,.6,'highpass',4000,2000,.7,.4,b,.01)},
+ splash(o){const t=AC.currentTime,b=bus(W_(o,.3));N(t,.35,'bandpass',1400+R()*600,500,.9,.5,b,.005);N(t+.02,.2,'highpass',5000,3000,1,.2,b,.002)},
+ growl(o){const t=AC.currentTime,b=bus(W_(o,.4));T(t,1.1,62,44,'sawtooth',.12,b,.15);N(t,1.1,'lowpass',260,90,2,.6,b,.2);N(t+.2,.6,'bandpass',700,400,4,.15,b,.1)},
+ snap(o){const t=AC.currentTime,b=bus(W_(o,.4));N(t,.05,'bandpass',2500,1200,2,1,b,.0005);T(t,.08,300,80,'square',.3,b);N(t+.03,.3,'lowpass',900,200,.7,.5,b,.002)},
+ lift(o){const t=AC.currentTime,b=bus(W_(o,.5));T(t,4,48,52,'sawtooth',.08,b,.5);N(t,4,'bandpass',180,220,3,.25,b,.6);for(let i=0;i<6;i++)N(t+.5+i*.6,.05,'bandpass',2600,1800,4,.12,b)},
+ alarm(o){const t=AC.currentTime,b=bus(W_(o,.5));for(let i=0;i<3;i++){T(t+i*.5,.25,880,860,'square',.05,b);T(t+i*.5+.25,.25,660,650,'square',.05,b)}}});
+// metal reflections come from a bright fixed environment map: in a black tunnel they glow, so dark chapters turn them down
+const ENVK={k:1};function envScale(k){if(ENVK.k===k)return;ENVK.k=k;scene.traverse(o=>{const m=o.material;if(!m)return;(Array.isArray(m)?m:[m]).forEach(q=>{if(q.envMapIntensity===undefined)return;if(q.userData.e0===undefined)q.userData.e0=q.envMapIntensity;q.envMapIntensity=q.userData.e0*k})})}
+// ambient level per chapter (ambient + hemi light, fog)
+function mood(a,h,fd,fc){AMB.intensity=a;HEMI.intensity=h;scene.fog.density=fd;if(fc!=null)scene.fog.color.setHex(fc)}
+// lamps that belong to this part (managed by the light pool like every other light)
+function lampX(arr,x,y,z,c,i,d,tag,len){const o=lamp(x,y,z,c,i||.001,d,tag,len);o.b=i;if(!i){o.m.color.setHex(0x111111);o.sp.visible=false}arr.push(o);return o}
+function lampOn(o,b){o.b=b;o.m.color.setHex(b>0?o.c:0x111111);o.sp.visible=b>0;if(o.l&&!b)o.l.intensity=0}
+function pLight(c,i,d,x,y,z){const l=new THREE.PointLight(c,i,d,2);l.position.set(x,y,z);scene.add(l);lpRegister(l);return l}
+// a hold-E prompt, and a dart test helper
+function sphereHit(o,d,maxD,c,r){const t=raySphere(o,d,c,r);return t>=0&&t<maxD?t:-1}
+// darts: chain new hit tests in front of Chapter 2's
+const XHIT=[];{const prev=c2Hit;c2Hit=function(o,d,maxD){for(const f of XHIT)if(f(o,d,maxD))return true;return prev(o,d,maxD)}}
+// heartbeat + pulse music for this part's fights (Chapter 1-2 music stays as it was)
+let XM={on:0,beat:0,step:0,stage:1,root:41.2},xhb=0;
+function xMusic(dt){if(!AC||!XM.on||dead)return;XM.beat-=dt;if(XM.beat>0)return;const bpm=[0,88,100,114][XM.stage]||90;XM.beat=60/bpm/2;const st=XM.step++%16,r=XM.root;
+ if(st%4===0){tn(r,.4,.45);nz(.07,160,40,.35)}if(st===6||st===14)nz(.1,3200,900,.1);if(XM.stage>=2&&st%2)nz(.03,9000,6000,.045);if(st%8===2)tn(r*2*[1,1.189,1.26,1.498][(XM.step>>3)%4],.5,.05,'sawtooth');if(XM.stage>=3&&st%4===3)tn(r*6,.08,.025,'square');if(st===0)tn(r*.5,2.4,.1,'triangle')}
+// chapter stats screen with a continue button
+function chapterScreen(tag,title,rows,next,onNext){over=1;try{document.exitPointerLock()}catch(e){}$('hud').style.display='none';$('tp').style.display='none';document.body.classList.remove('cut');XM.on=0;
+ $('en').innerHTML='<div class="pn" style="text-align:center;min-width:min(460px,86vw)"><small style="font:11px monospace;letter-spacing:.35em;color:#b8863b">'+tag+'</small><h2 style="font-size:30px;margin-top:6px">'+title+'</h2>'+rows.map(r=>'<div class="kv">'+r[0]+'<b style="max-width:260px;text-align:right">'+r[1]+'</b></div>').join('')+
+  (next?'<p style="font:italic 15px Georgia;color:#aaa;margin-top:16px">Next: '+next+'</p><b id="xnext" class="mi" style="margin-top:10px;border-color:#f44">CONTINUE</b>':'')+'<b class="mi" style="margin-top:6px">BACK TO TITLE</b></div>';$('en').classList.remove('off');
+ if(next&&$('xnext'))$('xnext').onclick=e=>{e.stopPropagation();$('en').classList.add('off');try{cv.requestPointerLock()}catch(x){}if(isTouch)$('tp').style.display='block';onNext()}}
+const bondTxt=()=>{const b=SAVE.bond||0;return b>=8?'Devoted':b>=5?'Fond':b>=2?'Warm':b>=0?'Polite':b>=-2?'Wary':'Cold'};
+const evCount=()=>{const E=SAVE.ev||{};return['power','med','reyes','lin'].filter(k=>E[k]).length};
+const tStr=s=>((s/60)|0)+':'+('0'+(s%60|0)).slice(-2);
+// when you start a later chapter from the menu, assume you found what came before it
+function assumeEarlier(n){SAVE.ev=SAVE.ev||{};if((SAVE.ch||1)<3&&n>=3){SAVE.ev.power=1;SAVE.ev.med=1}if((SAVE.ch||1)<4&&n>=4&&SAVE.beacon==null){SAVE.ev.reyes=1;SAVE.beacon=1}saveGame()}
+// put the world into a clean "after Chapter 2" state (doors open, fights off, ch2 actors hidden)
+function baseSkip(){armed=1;hasExt=1;BARI=BAR.length;SOL.forEach(s=>{if(s.tag==='bar')s.on=0});DOOR.userData.open=1;DOORBOX.on=0;power=1;BULK.userData.up=1;BULKBOX.on=0;obsOpen=1;obsDone=1;tvDone=1;colNote=1;OBSBOX.on=0;obsDoor.userData.up=1;SHIELD.userData.drop=1;BSTG=3;enteredBlock=1;
+ fightOn=0;try{clearFight()}catch(e){}MIST.on=0;delugeOn=0;C2.st=20;C2.kneel=0;C2.pick=0;C2.stand=0;C2.twTold=0;B2.on=0;STL.on=0;STL.chase=0;STL.done=0;STL.crouch=0;STLHUD.style.display='none';CRAWL.on=0;PEL.st=9;DOC.goPell=0;DOC.walking=0;DOC.talking=0;mOn=0;
+ CURED.forEach(c=>c.g.visible=false);B1.g.visible=false;BIG.g.visible=false;COPIES.forEach(b=>{b.alive=0;scene.remove(b.g)});COPIES.length=0;SENT.forEach(s=>{s.b.hide=1;s.b.g.visible=false});EB.on=0;
+ $('bb').style.display=$('bb2').style.display='none';document.body.classList.remove('cut');DQ=null;DLG.style.display='none';
+ over=0;dead=0;ph=2;HP=100;stam=100;$('hud').style.display='';$('fd').style.opacity=0;$('en').classList.add('off');setTool('gun');ui();tStart=gt;DEATHMSG='KILLED'}
+
+// =====================================================================
+// ---------- CHAPTER III · PERIPHERAL · world
+//  Service lift -> tunnel T1 (battery locker east, Pump Room 2 west: Sgt. Reyes) -> tunnel T2 (it hunts you) -> the Pump Hall (SCP-372) -> lift up
+//  Blackout. Your flashlight is the only light worth having, and its battery is running down.
+// =====================================================================
+const L3=[];
+const MTUN=PM(rep(T_.conc,1,1),{color:0x8a9088,roughness:.9}),MWALL3=PM(rep(T_.wall,1,1),{color:0x8a8a84,roughness:.9});
+// the lift room (arrival)
+room(100,-24,107,-17,3.4,MTUN,MF,MC,[]);wallX(-17,100,107,3.4,MTUN,null,2);wallX(-24,100,107,3.4,MTUN,[[102,105,2.6]],2);wallZ(100,-24,-17,3.4,MTUN,null,2);wallZ(107,-24,-17,3.4,MTUN,null,2);
+{const m=PBX();for(let i=0;i<9;i++)m.add(BOX,[101.2+i*.6,1.6,-17.3],0,[.04,3.2,.04],0x3a3c3e);m.add(BOX,[103.5,3.15,-17.4],0,[5.4,.12,.3],0x2a2c2e).add(BOX,[103.5,.06,-18.5],0,[5,.1,2],0x4a4e50);place(m,PVM,0,0,0,0)}
+sign('SERVICE LIFT 4-M','HEAVY CONTAINMENT · MAINTENANCE LEVEL',103.5,2.85,-17.17,PI,1.5,'#1c2226');
+lampX(L3,103.5,3.38,-20.5,0xffc890,.45,8,'flick',.9);
+// tunnel T1 (x 102..105, z -63..-24) and T2 (x 102..130, z -63..-60)
+room(102,-63,105,-24,3,MTUN,MF,MC,[]);room(105,-63,130,-60,3,MTUN,MF,MC,[]);
+wallZ(102,-63,-24,3,MTUN,[[-53.5,-51.5,2.3]],2);wallZ(105,-60,-24,3,MTUN,[[-40.5,-38.5,2.3]],2);wallX(-60,105,130,3,MTUN,null,2);wallX(-63,102,130,3,MTUN,null,2);
+pipeRun(102.3,-24.2,102.3,-62.6,2.6,.09,0x4a5a52);pipeRun(102.5,-24.2,102.5,-62.6,2.82,.05,0x8a2a22);pipeRun(104.75,-24.2,104.75,-59.8,2.7,.07,0x5a6268);
+pipeRun(105.2,-60.3,129.8,-60.3,2.65,.09,0x4a5a52);pipeRun(105.2,-62.7,129.8,-62.7,2.75,.06,0x5a6268);cableTray(103.5,-24.2,103.5,-59.8,2.88);cableTray(105.2,-61.5,129.8,-61.5,2.9);
+frameX(-24,102,105,2.6);frameZ(102,-53.5,-51.5,2.3);frameZ(105,-40.5,-38.5,2.3);frameZ(130,-63,-60,2.8);
+// the drainage channel along T1 (wet, reflective) and puddles everywhere
+{const m=new THREE.Mesh(new THREE.PlaneGeometry(.55,38).rotateX(-PI/2),new THREE.MeshStandardMaterial({color:0x060809,roughness:.12,metalness:.45,envMap:ENV,envMapIntensity:.4}));m.position.set(104.6,.012,-43);scene.add(m);
+ for(let i=0;i<9;i++){const p=new THREE.Mesh(new THREE.CircleGeometry(srnd(.4,1.1),20).rotateX(-PI/2),MWET);p.position.set(i<5?srnd(102.6,104.4):srnd(107,128),.009,i<5?srnd(-58,-26):srnd(-62.6,-60.4));p.scale.z=srnd(.5,1);scene.add(p)}}
+// signage, scrawls, the dead, the dropped torch
+sign('TUNNEL 4-M','PUMP ROOMS ▾   PUMP HALL ▸',103.5,2.4,-24.17,0,1.3,'#1c2226');
+sign('PUMP ROOM 2','',102.17,2.55,-52.5,PI/2,.9,'#1c2226');sign('STORES · BATTERIES','',104.83,2.55,-39.5,-PI/2,1,'#b8860b','#111');sign('PUMP HALL','SUMP · SLUICE · FLOOD CONTROL',129.83,2.5,-61.5,-PI/2,1.3,'#1c2226');
+scrawl("DON'T LOOK AWAY",102.17,1.6,-33,PI/2,2.4);scrawl('IT IS ONLY THERE WHEN YOU ARE NOT LOOKING',117,1.5,-60.17,PI,3.4,null,72);scrawl('KEEP YOUR LIGHT ON IT',104.83,1.5,-56,-PI/2,2.2,null,90);
+{const t=mkCv(256,128,(x)=>{x.strokeStyle='rgba(20,18,16,.9)';x.lineWidth=4;for(let g=0;g<6;g++)for(let k=0;k<5;k++){x.beginPath();x.moveTo(12+g*40+k*6,20+(g%2)*10);x.lineTo(14+g*40+k*6,70+(g%2)*10);x.stroke()}x.font='italic 22px Georgia';x.fillStyle='rgba(20,18,16,.9)';x.fillText('times I saw it',40,112)});decalP(t,1.2,.6,104.83,1.4,-29,-PI/2)}
+{const b=cured(103.2,-36.5,0x2a3448,'TECH. ROSS',{cap:0,skin:'dead',pants:0x3a4a2a});b.g.visible=true;b.rig.body.rotation.x=-PI/2;b.rig.body.position.y=.14;b.rig.head.rotation.y=.6;b.rig.aL.rotation.z=-1.2;floorDecal(BLOOD,1.4,103.4,-36.2,.7)}
+{const b=cured(118,-61.2,0xd8d8d0,'DR. VANCE',{coatLong:1,skin:'dead',hair:0x2a2018});b.g.visible=true;b.g.rotation.y=PI/2;b.rig.body.rotation.x=-PI/2;b.rig.body.position.y=.14;b.rig.aR.rotation.z=1.3;floorDecal(BLOOD,1.6,118,-61.4,.7);decalP(HAND,.38,.38,118.6,1.2,-60.17,PI,.9)}
+for(let i=0;i<10;i++)floorDecal(i%3?T_.scorch:BLOOD,srnd(.6,1.4),i<6?srnd(102.4,104.6):srnd(106,129),i<6?srnd(-62,-26):srnd(-62.6,-60.4),.45);
+for(let i=0;i<12;i++){const m=bx(srnd(.3,.7),.03,srnd(.3,.6),0x4a4b47,i<7?srnd(102.4,104.6):srnd(106,129),.02,i<7?srnd(-62,-26):srnd(-62.6,-60.4),{hit:false,cast:false});m.rotation.y=SR()*6}
+{const t=bx(.05,.05,.22,0x222222,103.8,.03,-47,{hit:false});t.rotation.y=2.2;const l=pLight(0xfff0d0,.25,2,103.7,.12,-47.1)}
+lampX(L3,103.5,2.98,-31,0xff2a18,.35,6,'emerg',.4);lampX(L3,103.5,2.98,-50,0xff2a18,.3,6,'emerg',.4);lampX(L3,116,2.98,-61.5,0xff2a18,.3,6,'emerg',.4);lampX(L3,125,2.98,-61.5,0xffc890,.0,6,'dead',.8);
+// battery locker (x 105..110, z -42..-37)
+room(105,-42,110,-37,2.8,MTUN,MF,MC,[]);wallX(-42,105,110,2.8,MTUN,null,2);wallX(-37,105,110,2.8,MTUN,null,2);wallZ(110,-42,-37,2.8,MTUN,null,2);
+tbox(.5,1.8,3.6,MS,109.6,.9,-39.5,1,{solid:'bshelf'});{const m=PBX();for(let i=0;i<3;i++)for(let k=0;k<5;k++)if((i+k)%3)m.add(BOX,[109.6,.35+i*.6,-41+k*.7],0,[.3,.22,.35],[0x8a2a22,0x3a4a5a,0xb8860b][(i*2+k)%3]);place(m,PVM,0,0,0,0)}
+bin(106,-41.4);plasticChair(107.4,-37.8,.6,true);lampX(L3,107.5,2.78,-39.5,0xffd090,.0,5,'dead',.6);
+// Pump Room 2 (x 95..102, z -56..-48): Sgt. Reyes holds out here
+room(95,-56,102,-48,3.2,MTUN,MF,MC,[]);wallX(-56,95,102,3.2,MTUN,null,2);wallX(-48,95,102,3.2,MTUN,null,2);wallZ(95,-56,-48,3.2,MTUN,null,2);
+const PRDOOR=tbox(.12,2.3,2,MS,102,1.15,-52.5,1);const PRBOX=solid(101.9,-53.5,102.1,-51.5,'prdoor');
+{const m=PBX();m.add(CYLG,[0,.9,0],0,[.8,1.8,.8],0x3a5a4a).add(CYLG,[0,1.9,0],0,[.5,.3,.5],0x2a3a32).add(CYLG,[0,.05,0],0,[1,.1,1],0x2a2c2e);tube(m,[0,1.4,0],[0,1.4,-3],.18,0x4a5a52);place(m,PVM,98,0,-50.8,0);solid(97.1,-51.7,98.9,-49.9,'pump')}
+const CULVERT=tbox(.06,.9,1.2,GRATEM,95.17,.45,-54.5,1,{hit:false});decalP(DT.stencil('CULVERT 2 · TO SURFACE DRAINS','rgba(230,200,60,.7)'),1.4,.2,95.17,1.15,-54.5,PI/2,1);
+tbox(1.4,.5,.6,MWD,100.6,.25,-55.4,1,{solid:'crate'});tbox(.8,.35,1.8,MS,96.4,.18,-49.2,1,{solid:'cot'});
+for(let i=0;i<14;i++){const w=bx(.12,.01,.08,[0xd03020,0xe0c040,0x3060c0][i%3],srnd(96,101),.01,srnd(-55.5,-48.6),{hit:false});w.rotation.y=R()*3}
+lampX(L3,98.5,3.18,-52,0xffc070,.0,5,'dead',.8);const PRL=pLight(0xffb060,0,6,99,1.2,-53);
+// tunnel T2 detail + the hall door
+{const m=PBX();[[110,-62.4],[121,-60.6],[127,-62.4]].forEach(p=>{m.add(BOX,[p[0],.4,p[1]],0,[1.2,.8,.5],0x3a3c3e).add(BOX,[p[0],.82,p[1]],0,[1.24,.04,.54],0x2a2c2e)});place(m,PVM,0,0,0,0)}
+// the Pump Hall (x 130..156, z -78..-50, 8 high)
+const H3={x0:130,x1:156,z0:-78,z1:-50};
+room(130,-78,156,-50,8,MC,MF,MC,[]);wallX(-50,130,156,8,MC,null,3);wallX(-78,130,156,8,MC,null,3);wallZ(130,-78,-50,8,MC,[[-63,-60,2.8]],3);wallZ(156,-78,-50,8,MC,[[-66,-62,3]],3);
+const HDOOR=tbox(.25,2.8,3,MS,130,1.4,-61.5,1);HDOOR.position.y=4.2;const HDBOX=solid(129.85,-63,130.15,-60,'hdoor');HDBOX.on=0;
+const GATE3=tbox(.25,3,4,MS,156,1.5,-64,1);const G3BOX=solid(155.85,-66,156.15,-62,'gate3');
+tbox(.3,.25,4.4,MHZ,156,3.12,-64,1,{hit:false});
+// the pumps: two big drums, pipes into the floor (cover)
+[[139,-64],[147.5,-64]].forEach(p=>{const m=PBX();m.add(CYLG,[0,2.4,0],0,[1.8,4.8,1.8],0x3a5a4a).add(CYLG,[0,4.9,0],0,[1.2,.4,1.2],0x2a3a32).add(CYLG,[0,.08,0],0,[2.1,.16,2.1],0x2a2c2e);
+ for(let k=0;k<6;k++)m.add(BOX,[Math.cos(k)*1.82,2.4,Math.sin(k)*1.82],[0,-k,0],[.08,4.6,.12],0x2a3a32);tube(m,[0,4.5,0],[0,7.9,0],.35,0x4a5a52);tube(m,[1.6,1.2,0],[4.2,1.2,0],.28,0x5a6268);
+ place(m,PVM,p[0],0,p[1],0);solid(p[0]-1.85,p[1]-1.85,p[0]+1.85,p[1]+1.85,'drum')});
+{const m=PBX();m.add(BOX,[143,4.2,-51.3],0,[25,.1,2],0x3a3c3e);for(let x=131;x<156;x+=2)m.add(BOX,[x,4.75,-52.25],0,[.05,1.1,.05],0x5a5e62);m.add(BOX,[143,5.3,-52.25],0,[25,.05,.05],0x5a5e62);for(let x=132;x<156;x+=4)m.add(BOX,[x,2.1,-52.2],0,[.12,4.2,.12],0x3a3c3e);place(m,PVM,0,0,0,0)}
+pipeRun(130.4,-77.6,155.6,-77.6,6.5,.22,0x4a5a52);pipeRun(130.4,-50.4,130.4,-77.6,5.8,.15,0x5a6268);
+// the sluice: a trench along the south wall and a gate that drops
+{const m=new THREE.Mesh(new THREE.PlaneGeometry(10,2.2).rotateX(-PI/2),new THREE.MeshStandardMaterial({color:0x020303,roughness:.1,metalness:.5,envMap:ENV,envMapIntensity:.3}));m.position.set(143,.015,-76.6);scene.add(m);
+ const g=PBX();for(let i=0;i<20;i++)g.add(BOX,[138.2+i*.5,.03,-76.6],0,[.06,.04,2.2],0x2a2c2e);place(g,PVM,0,0,0,0)}
+const SLUICE=tbox(10.4,3,.25,MS,143,4.6,-75.4,1);tbox(10.8,.3,.4,MHZ,143,6.2,-75.4,1,{hit:false});
+sign('SLUICE 1 · SUMP','',143,6.6,-77.8,0,1.6,'#1c2226');
+const SLV={x:143,z:-74.2};const SLUICEL=bx(.12,.12,.04,0x111111,144.4,1.4,-75.25,{hit:false});
+// flood valves
+const FV=[{x:131,z:-73.5,lbl:'WEST'},{x:155,z:-56,lbl:'EAST'}].map(v=>{const m=PBX();m.add(CYLG,[0,1,0],0,[.12,2,.12],0x5a6268);place(m,PVM,v.x+(v.x<140?-.6:.6),0,v.z,0);const w=new THREE.Mesh(new THREE.TorusGeometry(.28,.04,8,20),new THREE.MeshStandardMaterial({color:0xa01810,roughness:.5123}));w.position.set(v.x+(v.x<140?-.45:.45),1.25,v.z);w.rotation.y=PI/2;scene.add(w);
+ sign('FLOOD · '+v.lbl,'',v.x+(v.x<140?-.83:.83),2.1,v.z,v.x<140?PI/2:-PI/2,.9,'#b8860b','#111');return Object.assign(v,{w,open:0,spin:0})});
+// mirrors: the only place it shows itself once the lights are gone
+const MIR=[],mcam=new THREE.PerspectiveCamera(50,1,.05,40);mcam.layers.mask=1|8;
+function mkMirror(x,y,z,ry,w,h){const rt=new THREE.WebGLRenderTarget(256,Math.round(256*h/w),{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});rt.texture.wrapS=THREE.RepeatWrapping;rt.texture.repeat.x=-1;rt.texture.offset.x=1;
+ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:rt.texture,color:new THREE.Color(1.7,1.75,1.8)}));m.position.set(x,y,z);m.rotation.y=ry;m.userData.nocull=1;scene.add(m);
+ const n=new V3(Math.sin(ry),0,Math.cos(ry)),fr=PBX();fr.add(BOX,[0,h/2+.05,0],0,[w+.2,.1,.08],0x2a2c2e).add(BOX,[0,-h/2-.05,0],0,[w+.2,.1,.08],0x2a2c2e).add(BOX,[w/2+.05,0,0],0,[.1,h,.08],0x2a2c2e).add(BOX,[-w/2-.05,0,0],0,[.1,h,.08],0x2a2c2e);
+ const f=place(fr,PVM,x-n.x*.03,y,z-n.z*.03,ry);const o={m,rt,n,p:new V3(x,y,z),w,h,pl:new THREE.Plane().setFromNormalAndCoplanarPoint(n,new V3(x,y,z)),age:0};MIR.push(o);return o}
+mkMirror(137,1.9,-50.17,PI,2.2,1.5);mkMirror(149,1.9,-50.17,PI,2.2,1.5);mkMirror(130.17,1.9,-70,PI/2,2.2,1.5);mkMirror(155.83,1.9,-72,-PI/2,2.2,1.5);mkMirror(136,1.9,-77.83,0,2.2,1.5);
+sign('INSPECTION MIRROR · CHECK BEHIND YOU','',137,2.95,-50.17,PI,1.4,'#1c2226');
+let MIRON=0,mirI=0;
+function mirrorTick(){if(!MIRON||ph<2)return;const c=cam.position,fw=cam.getWorldDirection(new V3());let best=null,bs=-1e9;
+ MIR.forEach(o=>{const toC=c.clone().sub(o.p),dn=toC.dot(o.n);if(dn<.2)return;const d=toC.length();if(d>22)return;const vis=-toC.dot(fw)/d;const s=vis*2-d*.05+o.age*.4;o.age++;if(s>bs){bs=s;best=o}});
+ if(!best)return;best.age=0;const toC=c.clone().sub(best.p),dn=toC.dot(best.n),Rp=c.clone().addScaledVector(best.n,-2*dn);mcam.position.copy(Rp);mcam.up.set(0,1,0);mcam.lookAt(best.p);
+ const dist=Rp.distanceTo(best.p);mcam.fov=Math.min(110,2*Math.atan(best.h*.62/dist)*180/PI);mcam.aspect=best.w/best.h;mcam.updateProjectionMatrix();
+ best.m.visible=false;MOTES.visible=false;rd.clippingPlanes=[best.pl];rd.setRenderTarget(best.rt);rd.render(scene,mcam);rd.setRenderTarget(null);rd.clippingPlanes=[];best.m.visible=true}
+// hall lights: big cages for stage 1; small red lamps by each mirror for stage 2
+const HL3=[[136,-56],[150,-56],[136,-72],[150,-72]].map(p=>lampX(L3,p[0],7.9,p[1],0xdfe8ff,.0,22,'flick',2));
+const ML3=MIR.map(o=>lampX(L3,o.p.x+o.n.x*1.2,3.2,o.p.z+o.n.z*1.2,0xff3020,.0,7,'emerg',.4));
+// lift up out of the hall (x 156..162, z -67..-61)
+room(156,-67,162,-61,3.4,MTUN,MF,MC,[]);wallX(-67,156,162,3.4,MTUN,null,2);wallX(-61,156,162,3.4,MTUN,null,2);wallZ(162,-67,-61,3.4,MTUN,null,2);
+{const m=PBX();for(let i=0;i<9;i++)m.add(BOX,[161.7,1.6,-66.5+i*.65],0,[.04,3.2,.04],0x3a3c3e);place(m,PVM,0,0,0,0)}sign('SERVICE LIFT 4-H','HEAVY CONTAINMENT',161.83,2.85,-64,-PI/2,1.3,'#1c2226');
+lampX(L3,159,3.38,-64,0xffc890,.0,7,'flick',.9);
+// batteries (pick-ups) and dart boxes
+const BATS=[[109,-40.6],[106.2,-37.6],[100.4,-49],[123,-62.4],[131.6,-51.2]].map(p=>{const m=bx(.12,.07,.07,0xd8a412,p[0],p[0]>130?.04:.85,p[1],{hit:false});m.material=new THREE.MeshStandardMaterial({color:0xd8a412,emissive:0x2a1a00,roughness:.4123});const k={m,got:0};
+ it({x:p[0],z:p[1],c:()=>X3.on&&!k.got,t:'Take the battery',f(){k.got=1;m.visible=false;X3.bat=Math.min(100,X3.bat+45);S('click');sub('Flashlight battery +45%.',2)}});return k});
+const DART3=[[106.4,-41.4],[160,-62]].map(p=>{const m=bx(.4,.2,.25,0x3a4a2a,p[0],.85,p[1],{hit:false});const k={m,got:0};it({x:p[0],z:p[1],c:()=>X3.on&&!k.got,t:'Take the box of darts',f(){k.got=1;m.visible=false;WD[0].res+=15;S('rack');ui();sub('Fifteen darts.',2)}});return k});
+// SGT. REYES, sitting against the pump with his leg strapped
+const REY=cured(99.3,-53.2,0x2a3448,'SGT. REYES',{cap:1,skin:'alive',hair:0x1a1410});REY.g.rotation.y=PI*.15;REY.rig.body.position.y=-.47;REY.rig.lL.rotation.x=-PI/2+.15;REY.rig.lR.rotation.x=-PI/2+.05;REY.rig.kR.rotation.x=.3;REY.rig.torso.rotation.x=-.15;REY.rig.aL.rotation.x=-.3;REY.rig.aR.rotation.x=-.5;
+{const b=new THREE.Mesh(new THREE.BoxGeometry(.18,.16,.2),new THREE.MeshStandardMaterial({color:0xd8d0c0,roughness:1}));b.position.set(0,-.25,0);REY.rig.kL.add(b)}
+const REYCURED=[cured(103.6,-25,0xd8d8d0,'KOWALSKI',{coatLong:1,hair:0x2a2018}),cured(103.0,-25.6,0x2a3448,'BRANDT',{cap:1})];
+
+// =====================================================================
+// ---------- SCP-372: long, thin, fast. It moves only where you aren't looking.
+// =====================================================================
+function mk372(){const g=new THREE.Group(),pb=PBX(),C=0x0c0d0f,C2_=0x15171a;
+ pb.add(SPH,[0,.42,0],0,[.13,.1,.62],C).add(SPH,[0,.46,.55],0,[.1,.09,.2],C2_).add(SPH,[0,.47,.78],0,[.08,.07,.14],C).add(SPH,[0,.4,-.62],0,[.07,.06,.3],C);
+ [[.5,1],[.15,1],[-.25,1]].forEach((q,i)=>[-1,1].forEach(s=>{const sh=[s*.1,.45,q[0]],kn=[s*(.55+i*.05),.85,q[0]+.12],ft=[s*(.75+i*.04),0,q[0]+.2-(i*.15)];tube(pb,sh,kn,.022,C2_);tube(pb,kn,ft,.016,C)}));
+ for(let i=0;i<4;i++)tube(pb,[0,.5,.6+i*.05],[(i-1.5)*.08,.55,.95+i*.02],.008,C);
+ const m=pb.mesh(new THREE.MeshStandardMaterial({vertexColors:true,roughness:.25,metalness:.35,emissive:0x05070a,envMap:ENV,envMapIntensity:1.1}));g.add(m);
+ [-1,1].forEach(s=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,2.6,2.8)}));e.position.set(s*.035,.5,.9);g.add(e)});
+ g.visible=false;g.userData.nocull=1;scene.add(g);return g}
+const J={g:mk372(),x:0,z:0,on:0,mode:'off',stage:0,exp:0,hits:0,pin:0,atkT:4,skT:0,vx:0,vz:0,lay:0,frozenT:0,splT:0,gl:null};
+function jLayer(n){J.lay=n;J.g.traverse(o=>o.layers.set(n))}
+function jView(){const dx=J.x-P.x,dz=J.z-P.z,d=Math.hypot(dx,dz)||.01,ca=(dx*-Math.sin(yaw)+dz*-Math.cos(yaw))/d;return{d,ang:Math.acos(clamp(ca,-1,1)),los:los2(P.x,P.z,J.x,J.z)}}
+const WALK3=[[102.4,-62.6,104.6,-24.4],[104.6,-62.6,129.6,-60.4]];
+function jBounds(x,z){if(J.mode==='boss'||J.mode==='trap')return x>H3.x0+.6&&x<H3.x1-.6&&z>H3.z0+.6&&z<H3.z1-.6;if(J.mode==='glimpse')return true;return WALK3.some(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])}
+function jBlink(minA,maxA,rmin,rmax){for(let k=0;k<40;k++){const w=k<20,a=yaw+(R()<.5?-1:1)*(w?rnd(minA,maxA):rnd(.9,PI)),r=w?rnd(rmin,rmax):rnd(3,rmax),x=P.x-Math.sin(a)*r,z=P.z-Math.cos(a)*r;if(free(x,z,.35)&&jBounds(x,z)){J.x=x;J.z=z;return true}}return false}
+function jStep(tx,tz,sp,dt){const dx=tx-J.x,dz=tz-J.z,d=Math.hypot(dx,dz);if(d<.05)return 0;const st=Math.min(d,sp*dt),nx=J.x+dx/d*st,nz2=J.z+dz/d*st;let mv=0;
+ if(free(nx,J.z,.3)&&jBounds(nx,J.z)){J.x=nx;mv=1}if(free(J.x,nz2,.3)&&jBounds(J.x,nz2)){J.z=nz2;mv=1}if(!mv){const ox=-dz/d*st,oz=dx/d*st;if(free(J.x+ox,J.z+oz,.3)&&jBounds(J.x+ox,J.z+oz)){J.x+=ox;J.z+=oz}}
+ J.vx=dx/d;J.vz=dz/d;return st/dt}
+function j372Tick(dt){if(!J.on||dead)return;const v=jView(),lit=fOn&&X3.bat>0&&v.ang<.42&&v.d<15&&v.los,looked=v.ang<.38&&v.los&&v.d<24;
+ const observed=J.stage===2||J.stage===3?looked:(lit||(looked&&v.d<3.2));let speed=0;
+ if(observed&&J.mode!=='glimpse'){J.pin+=dt;J.frozenT+=dt;if(J.stage===1){J.exp=Math.min(100,J.exp+dt*15);$('bf').style.width=(100-J.exp)+'%';if(J.exp>=100){j1Done();return}}
+  if(J.pin>(J.stage===1?1.4:2.2)){J.pin=0;S('shriek',J.x,J.z,.5);burst(new V3(J.x,.5,J.z),new V3(0,1,0),[.2,.22,.25],10,2,.3);jBlink(2.0,2.8,5,8);J.atkT=Math.max(J.atkT,2.2)}}
+ else{J.pin=Math.max(0,J.pin-dt*2);J.frozenT=0;
+  if(J.mode==='glimpse'){if(v.ang>.5||!v.los){speed=jStep(J.gl[2],J.gl[3],9,dt);if(Math.hypot(J.x-J.gl[2],J.z-J.gl[3])<.2){J.on=0;J.g.visible=false;J.mode='off'}}}
+  else{J.atkT-=dt;const dmg=J.mode==='stalk'?12:20;
+   if(J.atkT<.7&&J.atkT+dt>=.7)S('hiss',J.x,J.z,.8);
+   if(J.atkT<=0){const tx=P.x+Math.sin(yaw)*.7,tz=P.z+Math.cos(yaw)*.7;speed=jStep(tx,tz,8.5,dt);
+    if(Math.hypot(P.x-J.x,P.z-J.z)<1.15&&iF<=0){hurt(dmg,J.x,J.z);S('snap',J.x,J.z);S('shriek',J.x,J.z,.4);shk=.12;J.atkT=3.2+R()*2;jBlink(1.8,2.9,6,9)}
+    if(J.atkT<-3){J.atkT=2;jBlink(1.8,2.9,6,9)}}
+   else if(J.mode==='stalk'){speed=jStep(P.x+Math.sin(yaw)*6,P.z+Math.cos(yaw)*6,4.5,dt)}else{const side=Math.sin(gt*.37+1)>0?1:-1,a=yaw+side*rnd(1.6,1.9),r=5.5;speed=jStep(P.x-Math.sin(a)*r,P.z-Math.cos(a)*r,J.stage>=2?5.5:6.5,dt)}}}
+ // body
+ const g=J.g;g.position.set(J.x,0,J.z);if(speed>.2){g.rotation.y=Math.atan2(J.vx,J.vz);g.position.y=Math.abs(Math.sin(gt*30))*.04;g.scale.set(1,1,1+Math.min(.5,speed*.05))}else{g.scale.set(1,1,1);g.rotation.z=Math.sin(gt*40)*.01*(J.pin>0?1:0)}
+ if(speed>2&&(J.skT-=dt)<0){J.skT=.11;S('skit',J.x,J.z,J.stage===3?.3:.6)}
+ if(J.stage===3&&speed>.6&&(J.splT-=dt)<0){J.splT=.09;ripple(J.x+rnd(-.2,.2),J.z+rnd(-.2,.2),1);burst(new V3(J.x,WAT.y+.05,J.z),new V3(0,1,0),[.55,.65,.75],5,1.6,.35);if(R()<.35)S('splash',J.x,J.z,.5)}}
+// darts on it
+XHIT.push((o,d,maxD)=>{if(!J.on||J.mode==='glimpse')return false;const r=J.stage===3?.8:.5,t=sphereHit(o,d,maxD,new V3(J.x,.5,J.z),r);if(t<0)return false;
+ const p=o.clone().addScaledVector(d,t);hm=1;sh++;burst(p,new V3(0,1,0),[.25,.28,.32],14,2.4,.4);S('shriek',J.x,J.z,.7);
+ if(J.stage===1){J.exp=Math.min(100,J.exp+16);$('bf').style.width=(100-J.exp)+'%';if(J.exp>=100){j1Done();return true}}
+ else if(J.stage===2){J.hits++;$('bf').style.width=((4-J.hits)/4*100)+'%';if(J.hits>=4){j2Done();return true}}
+ else if(J.stage===3){J.hits++;$('bf').style.width=((5-J.hits)/5*100)+'%';if(J.hits>=5){j3Done();return true}}
+ jBlink(1.8,2.9,6,9);J.atkT=Math.max(J.atkT,2.6);return true});
+// the flood: a water plane that rises, ripple rings where something moves through it
+const WAT={y:-.1,ty:-.1,m:new THREE.Mesh(new THREE.PlaneGeometry(26,28).rotateX(-PI/2),new THREE.MeshStandardMaterial({color:0x0a1416,roughness:.04,metalness:.55,envMap:ENV,envMapIntensity:.9,transparent:true,opacity:.86}))};
+WAT.m.position.set(143,-.1,-64);WAT.m.visible=false;WAT.m.userData.nocull=1;scene.add(WAT.m);
+const RIP=[];for(let i=0;i<14;i++){const m=new THREE.Mesh(new THREE.RingGeometry(.5,.58,28).rotateX(-PI/2),new THREE.MeshBasicMaterial({color:0xbfd8e8,transparent:true,opacity:0,depthWrite:false}));m.visible=false;m.userData.nocull=1;scene.add(m);RIP.push({m,t:9})}
+let ripI=0;function ripple(x,z,s){const r=RIP[ripI++%RIP.length];r.t=0;r.s=s||1;r.m.position.set(x,WAT.y+.012,z);r.m.visible=true}
+function ripTick(dt){RIP.forEach(r=>{if(r.t>1.6){r.m.visible=false;return}r.t+=dt;const k=r.t/1.6;r.m.scale.setScalar((.3+k*2.2)*r.s);r.m.material.opacity=(1-k)*.55;r.m.position.y=WAT.y+.012});
+ if(WAT.ty!==WAT.y){WAT.y+=(WAT.ty-WAT.y)*Math.min(1,dt*.6);WAT.m.position.y=WAT.y}}
+
+// =====================================================================
+// ---------- CHAPTER III story
+// =====================================================================
+const X3={on:0,st:0,bat:70,batT:0,rey:0,rCh:'',glimpses:{},stalk:0,boss:0,stg:0};
+const BATH=document.createElement('div');BATH.style.cssText='position:fixed;left:20px;bottom:62px;width:200px;font:10px monospace;letter-spacing:.2em;color:#ddd;display:none;z-index:4;text-shadow:0 1px 3px #000;pointer-events:none';
+BATH.innerHTML='LIGHT · BATTERY<div style="height:6px;background:#0009;border:1px solid #fff5;margin-top:3px"><i id="batg" style="display:block;height:100%;width:70%;background:#ffe9a0"></i></div>';document.body.appendChild(BATH);
+function lights3(on){L3.forEach(o=>{if(o.l)o.l.visible=on})}lights3(false);
+function x3Restore(){}
+function startCh3(){baseSkip();assumeEarlier(3);X3.on=1;X3.st=1;X3.bat=Math.max(X3.bat,60);X4.on=0;lights3(true);HL3.concat(ML3).forEach(o=>lampOn(o,0));
+ SAVE.ch=Math.max(SAVE.ch||1,3);saveGame();mood(.026,.03,.055,0x030405);envScale(.28);grade([.74,.9,1.0],[1.0,.98,.92],.28,.95);MOTEK=1;BATH.style.display='block';$('extw').style.display='none';
+ DOC.g.visible=true;DOC.g.position.set(101.3,0,-20.6);DOC.g.rotation.y=PI*.75;DOC.walking=0;
+ FQ.length=0;FQ.push('“IT WAS BEHIND YOU THE WHOLE TIME.”','“YOU LOOKED AWAY.”','“IT IS ONLY THERE WHEN YOU ARE NOT LOOKING.”','“THE DARK KEEPS WHAT IT TAKES.”');DEATHMSG='YOU LOOKED AWAY';
+ P.set(103.5,0,-19.6);yaw=0;pitch=0;fOn=1;REYCURED.forEach(c=>{c.g.visible=false});REY.g.visible=true;X3.st=1;X3.rTalk=0;X3.dOpen=0;X3.prUp=0;PRBOX.on=1;PRDOOR.position.y=1.15;X3.boss=0;X3.stg=0;MIRON=0;WAT.m.visible=false;HDBOX.on=0;HDOOR.position.y=4.2;X3.hd=0;G3BOX.on=1;GATE3.position.y=1.5;X3.g3=0;X3.doseAsk=0;J.on=0;J.g.visible=false;S('lift',103.5,-19);shk=.05;
+ chap('CHAPTER III','PERIPHERAL');obj('Go down Tunnel 4-M');checkpoint('c3',()=>{});XWPF=wp3;
+ setTimeout(()=>dsay([['This is as far as I go, Officer. The pumps flooded the lower level; there is no power down there.',4.6],['There may be someone left alive in Pump Room Two. I heard a voice on the maintenance band.',4.6],['If you find him, bring him to me. I can treat him.',3.2],['And keep your light on. Something lives in these tunnels that hates to be looked at.',4.4]],()=>{SPK='THE DOCTOR (RADIO)'}),1400)}
+function wp3(){if(!X3.on||ph!==2)return null;
+ if(X3.st===1)return P.z>-49?[102.2,1.4,-52.5]:null;if(X3.st===2)return[102.2,1.4,-52.5];if(X3.st===3)return[99.5,1,-53];
+ if(X3.st>=4&&X3.st<6)return[129.5,1.5,-61.5];if(X3.boss&&X3.stg===3&&!FV.every(v=>v.open)){const v=FV.find(v=>!v.open);return[v.x,1.3,v.z]}
+ if(X3.boss&&X3.stg===4)return[SLV.x,1.3,SLV.z];if(X3.st===8)return[159,1.5,-64];return null}
+// battery: drains while lit; flickers when low; dead = dark
+function batTick(dt){if(!X3.on)return;if(fOn&&ph===2){X3.bat=Math.max(0,X3.bat-dt*(X3.boss?.22:.4))}$('batg').style.width=X3.bat+'%';$('batg').style.background=X3.bat<20?'#ff6a3a':'#ffe9a0';
+ if(X3.bat<=0&&fOn){fOn=0;S('click');sub('The flashlight dies. Find a battery.',3)}
+ if(fOn&&X3.bat<18){X3.batT-=dt;if(X3.batT<0){X3.batT=.05+R()*.4;fl.intensity=R()<.35?.15:1.4}}}
+addEventListener('keydown',e=>{if(e.code==='KeyF'&&X3.on&&X3.bat<=0&&fOn){fOn=0;sub('No battery.',1.4)}},true);
+// scripted glimpses: it crosses a gap at the very edge of the light
+const GLIMPSES=[{at:-30,a:[104.6,-40.4],b:[102.6,-44]},{at:-45,a:[103.8,-58],b:[105,-60.5]},{at:-58.5,a:[112,-61.5],b:[116,-60.6]}];
+function glimpseTick(){if(!X3.on||J.on||X3.st<1||X3.st>=6)return;GLIMPSES.forEach((g,i)=>{if(X3.glimpses[i]||P.z>g.at)return;if(i===2&&X3.st<4)return;X3.glimpses[i]=1;J.on=1;J.mode='glimpse';J.stage=0;jLayer(0);J.g.visible=true;J.x=g.a[0];J.z=g.a[1];J.gl=[g.a[0],g.a[1],g.b[0],g.b[1]];setTimeout(()=>{if(J.mode==='glimpse'){J.on=0;J.g.visible=false;J.mode='off'}},7000)})}
+// the locker: something knocks a can over behind you
+let lockerScare=0;function lockerTick(){if(!lockerScare&&P.x>106.5&&P.z<-38&&P.z>-42){lockerScare=1;setTimeout(()=>{S('crack',P.x+Math.sin(yaw)*2,P.z+Math.cos(yaw)*2);S('skit',P.x+Math.sin(yaw)*3,P.z+Math.cos(yaw)*3);shk=.04},1600)}}
+// ---------- Reyes
+it({x:101.5,z:-52.5,c:()=>X3.on&&X3.st===1,t:'Knock on the door',f(){X3.st=2;S('thud',102,-52.5,.6);setTimeout(()=>S('thud',102,-52.5,.6),300);
+ setTimeout(()=>say2('VOICE BEHIND THE DOOR',1.25,[['…Who’s there? Who is that?',2.2],['You got a light on? Turn it off. Turn it OFF, or I don’t open this door.',4.2]],[100,-52.5],()=>{obj('Turn off your flashlight (F)');sub('Press F to turn off your light.',3)}),900)}});
+function reyesDoorTick(dt){if(X3.st===2&&!fOn&&!X3.dOpen&&!(SPK==='VOICE BEHIND THE DOOR'&&sT>0)){X3.dOpen=1;S('scrape',102,-52.5);setTimeout(()=>{PRBOX.on=0;X3.prUp=1;S('door',102,-52.5,.4);PRL.intensity=.45;say2('VOICE BEHIND THE DOOR',1.25,[['Get in. Quick. Keep it off.',2]],[100,-52.5]);X3.st=3;obj('Talk to the man in Pump Room 2')},700)}
+ if(X3.prUp&&PRDOOR.position.y<3.3)PRDOOR.position.y+=dt*1.4}
+it({x:99.9,z:-52.4,c:()=>X3.on&&X3.st===3&&!X3.rTalk,t:'Talk to the sergeant',f(){X3.rTalk=1;reyesTalk()}});
+function rsay3(L,done){say2('SGT. REYES',1.22,L,[99.3,-53.2],done)}
+function reyesTalk(){fOn=0;rsay3([['Reyes. Site security, Epsilon liaison. Leg’s done, I took a bad fall in the dark.',4.2],['Don’t turn your light on in here. It knows what a light means. Means somebody’s home.',4.4],['That thing in the tunnels… it’s only there when you’re not looking at it. You feel it at the corner of your eye.',5]],()=>
+ ask([{t:'Who’s been talking to you on the radio?',id:'a'},{t:'I’m taking you out of here.',id:'b'},{t:'There’s a Doctor helping me.',id:'c',bond:1}],id=>{
+  const R0={a:[['A calm voice. Says he’s a physician. Says he can help me.',3.4],['I’ve been on this site eleven years, Hale. I know that voice. That’s Zero-Four-Nine.',4.4]],
+   b:[['With this leg? I’d get us both killed.',2.6],['Listen first. You need to know who you’re walking with.',3.4]],c:[['A Doctor.',1.4],['Bird mask? Long coat? Calls you “my friend”?',3.2],['Hale. That’s Zero-Four-Nine.',2.6]]};
+  rsay3(R0[id],reyesEvidence)}))}
+function reyesEvidence(){rsay3([['Day zero, 02:09. I was on the Corridor B-2 checkpoint when the backup went.',4],['It didn’t fail. He opened the breaker panel. With his hands. Then he nodded at me, polite as you like, and walked on.',5.4],['I wrote it all down. Take it.',2.2]],()=>{SAVE.ev=SAVE.ev||{};SAVE.ev.reyes=1;saveGame();
+ paper('SGT. A. REYES · STATEMENT (HANDWRITTEN)','<p><b>Day 0, 02:09.</b> Corridor B-2 checkpoint. SCP-049 walked up the corridor unescorted. Opened breaker panel B-2/4 by hand and pulled the Sector 4 backup feed. Every cell lock in Wing B failed open within the minute.</p><p>He saw me. He <i>nodded</i>. Then he walked to the 457 fuel hatch.</p><p>Day 1 to 7: he collected the staff who stayed behind, one by one. They didn’t fight him. He talks to you until you agree you’re sick.</p><p>If I don’t make it: Epsilon-11 is staged outside <b style="display:inline">Gate B</b>. Beacon code is on my card. They come in when they get it. Not before.</p>');
+ sub('Evidence: Reyes’s statement.',3);setTimeout(reyesCall,3600)})}
+function reyesCall(){S('stat');radio([['Officer? I hear a second voice down there.',2.8],['Have you found someone? Is he hurt?',2.6],['Bring him to the lift. I will treat him myself.',3]],()=>{rsay3([['(whispering) Don’t. Please. You know what his treatment is.',3.4]],()=>
+ ask([{t:'(Radio) He’s here, Doctor. His leg is broken.',id:'tell',bond:2},{t:'(Radio) It’s nobody. A dead man and a radio.',id:'lie',bond:-1},{t:'(Switch the radio off.)',id:'off',bond:-2}],id=>{X3.rCh=id;SAVE.reyes=id;
+  if(id==='tell'){SAVE.beacon=0;saveGame();radio([['Wonderful. Stay where you are, Sergeant. My patients will carry you.',3.6],['Officer, go on to the pump hall. I will see to him.',3]],()=>rsay3([['…Yeah.',1],['Yeah, I figured you would.',2.2],['Go on, then.',1.4]],()=>{X3.st=4;REYCURED.forEach((c,i)=>{c.g.visible=true;c.g.position.set(103.4+i*.5,0,-26-i*.6);c.tx=103.5;c.tz=-52.5;c.sp=1.1;c.st='walk';c.leg=0});obj('Find the pump hall');checkpoint('t2',()=>{})}))}
+  else{SAVE.beacon=1;saveGame();(id==='lie'?radio:((L,d)=>{S('click');sub('You turn the radio off.',2);setTimeout(d,1600)}))([['…A pity. Come back to the pump hall, then.',2.8]],()=>rsay3([['Thank you.',1.2],['Here. My card. The beacon code’s on the back. Get it to a transmitter at Gate B.',4.2],['I’m going out through the culvert. If I make the surface I’ll tell them you’re coming.',4.2]],()=>{
+   sub('You have Reyes’s beacon code.',3);X3.st=4;X3.reyGo=1;obj('Find the pump hall');checkpoint('t2',()=>{})}))}}))})}
+function reyesTick(dt){if(!X3.on)return;
+ if(X3.reyGo&&REY.g.visible){REY.rig.body.position.y+=(0-REY.rig.body.position.y)*dt*2;REY.rig.lL.rotation.x*=.95;REY.rig.lR.rotation.x*=.95;REY.tx=95.6;REY.tz=-54.5;REY.sp=.7;if(moveTo(REY,dt)){REY.g.visible=false;S('scrape',95.3,-54.5);X3.reyGo=0}}
+ REYCURED.forEach(c=>{if(!c.g.visible)return;if(moveTo(c,dt)){if(!c.leg){c.leg=1;c.tx=100.4;c.tz=-52.5;return}if(Math.hypot(P.x-c.g.position.x,P.z-c.g.position.z)>9){c.g.visible=false;REY.g.visible=false}}})}
+// ---------- T2: it hunts you for the first time
+function t2Tick(){if(X3.st===4&&P.z<-59.6&&P.x>106){X3.st=5;J.on=1;J.mode='stalk';J.stage=0;jLayer(0);J.g.visible=true;if(!jBlink(2.6,3.1,6,8)){J.x=P.x-6;J.z=-61.5}J.atkT=5;
+ radio([['Do you feel that, Officer? At the edge of your eye?',3.2],['Keep your light on it. It cannot bear to be seen.',3.2],['Walk on. Don’t run, and don’t look away for long.',3]]);obj('Get to the pump hall. Keep it in your light')}
+ if(X3.st===5&&P.x>131){X3.st=6;J.on=0;J.g.visible=false;J.mode='off';boss3Start()}}
+// =====================================================================
+// ---------- CHAPTER III BOSS · SCP-372 · the Pump Hall
+//  I   in the light: pin it in your beam until it breaks
+//  II  the mirrors: the lights die; you can only see it reflected
+//  III the flood: open the flood valves; follow the splashes, then trap it in the sluice
+// =====================================================================
+function b3Restore(n){return()=>{HP=100;X3.boss=1;X3.stg=n;J.on=1;J.mode='boss';J.stage=n;J.exp=0;J.hits=0;J.atkT=4;J.x=150;J.z=-70;J.g.visible=true;XM.on=1;XM.stage=n;XM.root=[0,38.9,36.7,34.6][n];
+ HDBOX.on=1;HDOOR.position.y=1.4;X3.bat=Math.max(X3.bat,70);$('bb').style.display='block';$('bf').style.width='100%';
+ if(n===1){jLayer(0);MIRON=0;HL3.forEach(o=>lampOn(o,.75));ML3.forEach(o=>lampOn(o,0));WAT.ty=WAT.y=-.1;WAT.m.visible=false;$('bn').textContent='SCP-372 · THE PERIPHERAL JUMPER';obj('Pin it in your flashlight beam. Shoot it while it is held')}
+ if(n===2){jLayer(3);MIRON=1;HL3.forEach(o=>lampOn(o,0));ML3.forEach(o=>lampOn(o,.45));WAT.ty=WAT.y=-.1;WAT.m.visible=false;$('bn').textContent='SCP-372 · IN THE MIRRORS';obj('Find it in the mirrors. Turn, and shoot it (0/4)')}
+ if(n===3){jLayer(4);MIRON=0;J.on=0;HL3.forEach(o=>lampOn(o,0));ML3.forEach(o=>lampOn(o,.2));FV.forEach(v=>v.open=0);WAT.ty=WAT.y=-.1;WAT.m.visible=true;$('bn').textContent='SCP-372 · THE FLOOD';obj('Open both flood valves (0/2)');$('bf').style.width='100%'}}}
+function boss3Start(){checkpoint('b31',b3Restore(1));HDBOX.on=1;
+ cutscene({dur:9,cam:[[0,[131.5,1.7,-61.5],[140,1.6,-62]],[3,[133,1.8,-60.5],[150,3.5,-70]],[6.5,[134,2,-60],[150,1.2,-70.5]],[9,[132.5,1.7,-61.5],[143,1.5,-64]]],
+  ev:[[.2,()=>{S('door',130,-61.5);S('boom',130,-61.5,.3);X3.hd=1;shk=.12;sub('The hall door drops shut behind you.',2.6)}],[1.6,()=>{HL3.forEach((o,i)=>setTimeout(()=>{lampOn(o,.75);S('pow',o.x,o.z,.3)},i*350))}],
+   [3,()=>{J.on=0;J.g.visible=true;jLayer(0);J.x=150;J.z=-70.5;J.g.position.set(150,0,-70.5);J.g.rotation.y=-PI/2}],[4.2,()=>{S('shriek',150,-70);radio([['There. SCP-372.',1.8],['It lives where the eye does not look. Hold it in your light and it will break.',4.2]])}],[6.8,()=>chap('SCP-372','THE PERIPHERAL JUMPER')]],
+  done:()=>{b3Restore(1)()}})}
+function j1Done(){J.on=0;$('bb').style.display='none';XM.on=0;cutscene({dur:9,cam:[[0,[P.x,1.7,P.z],[J.x,.6,J.z]],[4,[143,6,-52],[143,0,-66]],[9,[143,5,-53],[143,1,-66]]],
+  ev:[[.2,()=>{S('shriek',J.x,J.z);flashW();shk=.2;J.g.visible=false}],[1.4,()=>{HL3.forEach((o,i)=>setTimeout(()=>{lampOn(o,0);S('glass',o.x,o.z,.6);burst(new V3(o.x,7.6,o.z),new V3(0,-1,0),[1,.85,.4],40,5,.8)},i*300))}],
+   [3.4,()=>radio([['It has put out the lights. It will not let you see it again.',3.6],['But a mirror does not look away. Use the inspection mirrors on the walls.',4.4]])],[7.6,()=>{ML3.forEach(o=>lampOn(o,.45));S('hum',143,-50,.3)}]],
+  done:()=>{checkpoint('b32',b3Restore(2));b3Restore(2)();mirrorTick()}})}
+function j2Done(){J.on=0;MIRON=0;$('bb').style.display='none';XM.on=0;cutscene({dur:10,cam:[[0,[P.x,1.7,P.z],[143,2,-64]],[4,[133,2.4,-56],[143,3.5,-74]],[10,[134,2,-57],[143,.4,-70]]],
+  ev:[[.3,()=>{S('shriek',J.x,J.z);MIR.forEach((o,i)=>setTimeout(()=>{o.m.material.color.setRGB(.05,.05,.06);S('glass',o.p.x,o.p.z,.8);burst(o.p.clone().addScaledVector(o.n,.1),o.n,[.8,.85,.9],30,3,.6)},i*260))}],
+   [3,()=>radio([['It broke the mirrors. Clever thing.',2.6],['The flood valves, Officer. Fill the hall. Nothing moves through water without being heard.',4.6]])],[8,()=>{S('creak',143,-64,.8);shk=.06}]],
+  done:()=>{checkpoint('b33',b3Restore(3));b3Restore(3)()}})}
+FV.forEach(v=>it({x:v.x,z:v.z,c:()=>X3.boss&&X3.stg===3&&!v.open&&ph===2,t:'Open the '+v.lbl+' flood valve',hold:2.4,onHold(){if(R()<.1)S('valve',v.x,v.z,.3)},f(){v.open=1;v.spin=1.4;S('valve',v.x,v.z);S('burst',v.x,v.z,.6);
+ const n=FV.filter(q=>q.open).length;obj('Open both flood valves ('+n+'/2)');sub(v.lbl+' valve open. Water pours in.',2.4);WAT.ty=n>=2?.32:.12;
+ if(n>=2){J.on=1;J.atkT=3;$('bf').style.width='100%';setTimeout(()=>{radio([['Listen. Watch the water. When the splashing stops, it is right in front of you.',4.4]]);obj('Follow the splashes. Shoot it (0/5)')},1200)}}}));
+function j3Done(){J.on=0;$('bb').style.display='none';XM.on=0;X3.stg=4;J.mode='trap';
+ sub('It thrashes in the water, stunned. Drop the sluice on it!',3);radio([['Now! The sluice gate, on the south wall!',2.6]]);obj('Close the sluice gate');
+ J.x=SLV.x+rnd(-2,2);J.z=-76.2;}
+it({x:SLV.x,z:SLV.z,c:()=>X3.boss&&X3.stg===4,t:'Drop the sluice gate',hold:1.2,f(){X3.stg=5;sluiceCut()}});
+function sluiceCut(){cutscene({dur:11,cam:[[0,[143,2.2,-70],[143,.8,-76.4]],[5,[146,2.6,-71],[143,1.5,-76]],[11,[144,3,-69],[143,2.6,-76]]],
+  ev:[[.4,()=>{S('lever',144.4,-75.2);SLUICEL.material=new THREE.MeshBasicMaterial({color:0x20ff40})}],[1.2,()=>{X3.slDrop=1;S('door',143,-75.4)}],[2.2,()=>{burst(new V3(143,.4,-76.3),new V3(0,1,0),[.55,.65,.75],80,4,.8);S('boom',143,-76,.5);S('shriek',143,-76.5);shk=.25}],
+   [4,()=>{WAT.ty=-.1;S('splash',143,-76,1);sub('The water drains into the sump, and takes it with it.',3.4)}],[7,()=>radio([['Contained. For now. Well done, my friend.',2.8],['The far gate is open. Come up to me.',2.4]])],[8.5,()=>{G3BOX.on=0;X3.g3=1;S('door',156,-64);lights3(true);HL3.forEach(o=>lampOn(o,0));ML3.forEach(o=>lampOn(o,0))}]],
+  done:()=>{X3.boss=0;X3.st=8;MIRON=0;WAT.m.visible=false;obj('Take the lift up');checkpoint('lift3',()=>{});DOC.g.visible=true;DOC.g.position.set(159.6,0,-63);DOC.g.rotation.y=-PI/2}})}
+// ---------- the second dose, at the lift
+function liftTick(){if(X3.st===8&&P.x>157.2&&!X3.doseAsk){X3.doseAsk=1;dose2()}}
+function dose2(){const told=X3.rCh==='tell';dsay([['You are bleeding again.',1.8]].concat(told?[['Your sergeant is resting. He sends his thanks.',3]]:[]).concat([['Come. Let me look at you.',2.2],['A second dose. It will close those wounds and keep the Pestilence from you a little longer.',4.6]]),()=>
+ ask([{t:'Do it.',id:'yes',bond:1},{t:'Thank you, Doctor.',id:'yes2',bond:2},{t:'No more injections.',id:'no',bond:-1}].concat(SAVE.doses>=1?[{t:'What did the first one do to me?',id:'what'}]:[]),id=>{
+  if(id==='what'){dsay([['It made you calmer. Clearer. Did it not?',2.8],['That is what being well feels like, my friend.',3.2]],dose2b);return}
+  dose2res(id)}))}
+function dose2b(){ask([{t:'Do it.',id:'yes',bond:1},{t:'No.',id:'no',bond:-1}],dose2res)}
+function dose2res(id){if(id==='yes'||id==='yes2'){SAVE.doses=(SAVE.doses||0)+1;SAVE.dose2=1;saveGame();HP=100;setTimeout(()=>{S('click');flashW();shk=.05;sub('A sting. A cold, clean calm. The pain is gone.',3)},400);setTimeout(()=>dsay([['There. Much better.',2]],ch3End),3200)}
+ else{SAVE.dose2=0;saveGame();dsay([['…As you wish.',1.6],['You are very stubborn for a sick man.',2.6]],ch3End)}}
+function ch3End(){X3.on=0;J.on=0;J.g.visible=false;BATH.style.display='none';S('lift',159,-64);SAVE.ch=Math.max(SAVE.ch||1,4);SAVE.ch3={deaths,time:Math.floor(gt-tStart)};saveGame();
+ const rey=X3.rCh==='tell'?'Given to the Doctor.':X3.rCh==='lie'?'Escaped through the culvert. You lied for him.':X3.rCh==='off'?'Escaped. You cut the Doctor off.':'—';
+ setTimeout(()=>chapterScreen('CHAPTER III COMPLETE','PERIPHERAL',[['Time',tStr(Math.floor(gt-tStart))],['Doses accepted',(SAVE.doses||0)+' / 2'],['Evidence against him',evCount()+' / 3'],['Sgt. Reyes',rey],['Beacon code',SAVE.beacon?'In your pocket':'None'],['The Doctor’s regard',bondTxt()],['Deaths',deaths]],'Chapter IV · Gate B',()=>startCh4()),1800)}
+function x3Tick(dt,ctrl){if(!X3.on)return;batTick(dt);glimpseTick();lockerTick();reyesDoorTick(dt);reyesTick(dt);if(ctrl)t2Tick();liftTick();j372Tick(dt);ripTick(dt);
+ FV.forEach(v=>{if(v.spin>0){v.spin-=dt;v.w.rotation.x+=dt*6}});if(X3.hd&&HDOOR.position.y>1.4)HDOOR.position.y=Math.max(1.4,HDOOR.position.y-dt*6);if(X3.slDrop&&SLUICE.position.y>1.5)SLUICE.position.y=Math.max(1.5,SLUICE.position.y-dt*3.5);if(X3.g3&&GATE3.position.y<4.4)GATE3.position.y+=dt*1.4;
+ if(MIRON)mirrorTick();if(X3.boss){xMusic(dt);if(ctrl&&(xhb-=dt)<0){xhb=.3+(HP/100)*.7;if(HP<55)S('heart')}}
+ // wading: water slows you a little and splashes
+ if(WAT.m.visible&&WAT.y>.05&&P.x>H3.x0&&P.x<H3.x1&&P.z>H3.z0&&P.z<H3.z1){P.x-=sm.x*dt*.3;P.z-=sm.z*dt*.3;if(sm.length()>1&&R()<dt*5){ripple(P.x,P.z,.7);S('splash',P.x,P.z,.25)}}
+ HL3.concat(ML3).forEach(o=>{if(o.l&&o.b===0)o.l.intensity=0})}
+XT.push(x3Tick);
+
+// =====================================================================
+// ---------- CHAPTER IV · GATE B · world
+//  Lift -> archive corridor H1 (Dr. Lin's office) -> the kennels (SCP-939) -> the Gate B hall and its airlock -> daylight
+// =====================================================================
+const L4=[];
+const MHC=PM(rep(T_.conc,1,1),{color:0x9a9ea2,roughness:.92}),MCLIN=PM(rep(T_.wall,1,1),{color:0xc8ccd0,roughness:.85});
+// lift room + archive corridor
+room(180,-44,188,-36,3.4,MHC,MF,MC,[]);wallX(-44,180,188,3.4,MHC,null,2);wallX(-36,180,188,3.4,MHC,null,2);wallZ(180,-44,-36,3.4,MHC,null,2);wallZ(188,-44,-36,3.4,MHC,[[-42,-38,3]],2);
+{const m=PBX();for(let i=0;i<9;i++)m.add(BOX,[180.3,1.6,-43.4+i*.85],0,[.04,3.2,.04],0x3a3c3e);place(m,PVM,0,0,0,0)}sign('SERVICE LIFT 4-H','',180.17,2.85,-40,PI/2,1.2,'#1c2226');
+room(188,-42,210,-38,3,MCLIN,MLI,MCE,[]);wallX(-38,188,210,3,MCLIN,[[199,201,2.3]],2.4);wallX(-42,188,210,3,MCLIN,null,2.4);
+frameZ(188,-42,-38,3);frameX(-38,199,201,2.3);frameZ(210,-42,-38,3);
+sign('HEAVY CONTAINMENT · ARCHIVE','RECORDS · KENNELS ▸ · GATE B ▸',189,2.4,-38.17,PI,1.6,'#1c2226');sign('RECORDS 4 · DR. M. LIN','',200,2.6,-38.17,PI,1.1,'#1c2226');
+pipeRun(188.2,-38.4,209.8,-38.4,2.7,.06,0x5a6a5a);cableTray(188.2,-41.5,209.8,-41.5,2.85);
+for(let i=0;i<6;i++){const m=bx(.9,1.9,.45,0x5a6066,190+i*3.2,.95,-41.6,{hit:false});const d=bx(.86,.1,.02,0x3a3e42,190+i*3.2,1.5,-41.36,{hit:false})}
+for(let i=0;i<10;i++)decalP(DT.paper,.2,.27,srnd(189,209),.014,srnd(-41.6,-38.4),0,.9).rotation.set(-PI/2,0,SR()*6);floorDecal(BLOOD,1.2,205,-40.2,.6);decalP(DT.drag,.7,3,207,.013,-40,PI/2,.7);
+lampX(L4,184,3.38,-40,0xffd8a0,.5,9,'flick',1);lampX(L4,193,2.98,-40,0xe8f0ff,.45,9,'flick',1.2);lampX(L4,205,2.98,-40,0xe8f0ff,.0,9,'dead',1.2);
+// Dr. Lin's office (x 196..204, z -38..-31): a barricaded records room
+room(196,-38,204,-31,3,MCLIN,MLI,MCE,[]);wallX(-31,196,204,3,MCLIN,null,2.4);wallZ(196,-38,-31,3,MCLIN,null,2.4);wallZ(204,-38,-31,3,MCLIN,null,2.4);
+const LDOOR=tbox(2,2.3,.12,MS,200,1.15,-38,1);const LDBOX=solid(199,-38.1,201,-37.9,'ldoor');
+tbox(1.8,.06,.9,MWD,201.8,.76,-32.2,1,{solid:'ldesk'});bx(.5,.35,.4,0x2a2a2a,201.6,1.0,-32,{hit:false});
+for(let i=0;i<4;i++)tbox(.5,2,1.6,MS,196.5,1,-36.8+i*1.7,1,{solid:'files'});
+{const m=PBX();for(let i=0;i<20;i++)m.add(BOX,[srnd(197,203),.02+i*.01,srnd(-37,-31.6)],[0,SR()*3,0],[.22,.01,.3],0xe8e4d8);place(m,PVP,0,0,0,0)}
+{const t=mkCv(512,256,(x,w,h)=>{x.fillStyle='#e8ebe6';x.fillRect(0,0,w,h);x.fillStyle='#223';x.font='bold 26px Arial';x.fillText('DAY 0 · SECTOR 4 POWER',20,40);x.strokeStyle='#a01a10';x.lineWidth=4;x.beginPath();x.moveTo(30,200);x.lineTo(150,200);x.lineTo(160,90);x.lineTo(175,200);x.lineTo(480,200);x.stroke();x.fillStyle='#a01a10';x.font='italic 22px Georgia';x.fillText('02:09 — not a fault. HE did this.',150,80)});const m=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.9),new THREE.MeshStandardMaterial({map:t,roughness:.3}));m.position.set(200,1.7,-31.17);m.rotation.y=PI;scene.add(m)}
+lampX(L4,200,2.98,-34.5,0xfff0d8,.45,8,'flick',1);
+const LIN=cured(201.3,-33.6,0xd8d8d0,'DR. M. LIN',{coatLong:1,skin:'alive',hair:0x0e0c0a});LIN.g.rotation.y=PI*.85;
+// the kennels (x 210..222, z -80..-38): cages either side, a central run
+room(210,-80,222,-38,4.2,MHC,MF,MC,[]);wallZ(210,-80,-38,4.2,MHC,[[-42,-38,3]],2);wallZ(222,-80,-38,4.2,MHC,null,2);wallX(-38,210,222,4.2,MHC,null,2);wallX(-80,210,222,4.2,MHC,[[214,218,3.2]],2);
+sign('KENNELS · SCP-939','DO NOT SPEAK · DO NOT ANSWER',213,3.3,-38.17,PI,1.6,'#7a1a1a');
+{const bars=PBX();for(let z=-44;z>-80;z-=6){[[210,213],[219,222]].forEach(s=>{tbox(3,4.2,.15,MHC,(s[0]+s[1])/2,2.1,z,1,{solid:'kwall'})});
+  [[213,1],[219,-1]].forEach(f=>{const x=f[0];for(let k=0;k<12;k++){const zz=z+.25+k*.5;if(k>=4&&k<7)continue;bars.add(CYLG,[x,1.6,zz],0,[.025,3.2,.025],0x4a4e52)}bars.add(BOX,[x,3.25,z+3],0,[.08,.1,6],0x3a3e42);
+   solid(x-.05,z,x+.05,z+2,'bars');solid(x-.05,z+3.5,x+.05,z+6,'bars')})}place(bars,PVM,0,0,0,0)}
+for(let i=0;i<12;i++)floorDecal(i%2?BLOOD:T_.scorch,srnd(.8,1.8),srnd(210.5,221.5),srnd(-79,-39),.55);
+scrawl('IT SOUNDS LIKE PEOPLE',221.83,2.2,-54,-PI/2,2.6);scrawl('DON\'T ANSWER',210.17,1.6,-66,PI/2,2.2);
+{const b=cured(220.2,-61,0x2a3448,'GUARD',{cap:1,skin:'dead'});b.g.visible=true;b.rig.body.rotation.x=-PI/2;b.rig.body.position.y=.14;b.g.rotation.y=-.6;floorDecal(BLOOD,1.8,220.2,-61,.8)}
+lampX(L4,216,4.18,-46,0xff2a18,.35,8,'emerg',.4);lampX(L4,216,4.18,-60,0xffd0a0,.3,8,'flick',.8);lampX(L4,216,4.18,-74,0xff2a18,.35,8,'emerg',.4);
+// the Gate B hall (x 204..236, z -104..-80, 9 high) and its airlock (x 216..226, z -110..-104)
+room(204,-104,236,-80,9,MHC,MF,MC,[]);wallX(-80,204,236,9,MHC,[[214,218,3.2]],3);wallX(-104,204,236,9,MHC,[[216,226,6]],3);wallZ(204,-104,-80,9,MHC,null,3);wallZ(236,-104,-80,9,MHC,null,3);
+room(216,-110,226,-104,6,MHC,MF,MC,[]);wallZ(216,-110,-104,6,MHC,null,2);wallZ(226,-110,-104,6,MHC,null,2);
+const INNER=tbox(10,6,.5,MS,221,3,-104,1);INNER.position.y=8.9;const INBOX=solid(216,-104.25,226,-103.75,'inner');INBOX.on=0;
+const OUTER=tbox(10,6,.5,MS,221,3,-110,1);const OUTBOX=solid(216,-110.25,226,-109.75,'outer');
+[[221,-103.7,0],[221,-109.7,0]].forEach(p=>{const m=PBX();for(let i=0;i<10;i++)m.add(BOX,[-4.5+i,.3,0],0,[.5,.08,.02],i%2?0x141414:0xd8a412);place(m,PVP,p[0],0,p[1],0)});
+sign('GATE B','SURFACE ACCESS · AIRLOCK 2',221,7.2,-103.8,0,3,'#7a1a1a');
+{const m=new THREE.Mesh(new THREE.PlaneGeometry(10,6),new THREE.MeshBasicMaterial({color:new THREE.Color(3.2,3.1,2.8)}));m.position.set(221,3,-110.5);m.rotation.y=0;scene.add(m)}// daylight behind the outer door
+{const f=plane(14,16,MF,221,0,-118,-PI/2,0,3);COL.push(f)}
+const DAYL=pLight(0xfff2dc,0,30,221,4,-108);
+// gantry, pillars, cables, hazard lines, MTF crates
+{const m=PBX();for(let x=207;x<236;x+=7)m.add(BOX,[x,4.5,-80.5],0,[.5,9,.5],0x3a3c3e).add(BOX,[x,4.5,-103.5],0,[.5,9,.5],0x3a3c3e);m.add(BOX,[220,5.2,-81.4],0,[31,.12,1.8],0x3a3c3e);for(let x=205;x<236;x+=2)m.add(BOX,[x,5.75,-82.25],0,[.05,1.1,.05],0x5a5e62);
+ [[-1,1]].forEach(()=>{});for(let x=216;x<=226;x+=10)m.add(BOX,[x,.005,-92],0,[.12,.01,24],0xd8a412);place(m,PVM,0,0,0,0)}
+pipeRun(204.4,-80.4,204.4,-103.6,7,.2,0x4a5a52);pipeRun(235.6,-80.4,235.6,-103.6,6.4,.16,0x5a6268);cableTray(206,-102.8,234,-102.8,6.2);
+[[230,-88],[208,-84]].forEach(p=>{tbox(1.6,1.1,1.1,MS,p[0],.55,p[1],1,{solid:'crate'});tbox(1.1,.8,1.1,MWD,p[0]+.2,1.5,p[1],1,{hit:false})});
+lampX(L4,212,8.9,-86,0xe8f0ff,.6,22,'flick',2);lampX(L4,228,8.9,-86,0xe8f0ff,.55,22,'flick',2);lampX(L4,212,8.9,-98,0xff3020,.5,20,'emerg',1);lampX(L4,228,8.9,-98,0xe8f0ff,.5,22,'flick',2);lampX(L4,221,5.9,-107,0xff3020,.35,8,'emerg',.6);
+// the gate console, the three relay transmitters, the inner-door panel
+{const m=PBX();m.add(BOX,[0,.5,0],0,[2.4,1,.9],0x2a2e32).add(BOX,[0,1.05,-.15],[-.5,0,0],[2.3,.06,.7],0x1a1c1e);for(let i=0;i<3;i++)m.add(BOX,[-.75+i*.75,1.55,.3],[0,0,0],[.6,.42,.05],0x111214);place(m,PVM,208.6,0,-91,PI/2);solid(208,-92.3,209.3,-89.7,'console')}
+const CONS=[0,1,2].map(i=>{const c=document.createElement('canvas');c.width=128;c.height=96;const t=new THREE.CanvasTexture(c);const m=new THREE.Mesh(new THREE.PlaneGeometry(.56,.38),new THREE.MeshBasicMaterial({map:t,toneMapped:false}));m.position.set(208.27,1.55,-91.75+i*.75);m.rotation.y=-PI/2;scene.add(m);return{c,x:c.getContext('2d'),t}});
+sign('GATE B · CONTROL','',208.3,2.6,-91,-PI/2,1.4,'#1c2226');
+const RELAY=[[233.6,-84],[206.4,-101],[233.6,-101]].map((p,i)=>{const m=PBX();m.add(BOX,[0,.8,0],0,[.6,1.6,.5],0x3a4a3a).add(CYLG,[0,2.1,0],0,[.02,1,.02],0x8a8e90).add(BOX,[0,1.3,.26],0,[.4,.3,.02],0x111111);place(m,PVM,p[0],0,p[1],p[0]>220?-PI/2:PI/2);
+ const l=bx(.08,.08,.08,0x111111,p[0],2.62,p[1],{hit:false});l.material=new THREE.MeshBasicMaterial({color:0x330000});return{x:p[0],z:p[1],l,done:0}});
+const PANEL=bx(.25,.35,.1,0x2a2e32,228.6,1.35,-103.7,{hit:false});const PANL=bx(.08,.08,.04,0x111111,228.6,1.6,-103.63,{hit:false});PANL.material=new THREE.MeshBasicMaterial({color:0xff2010});
+sign('INNER DOOR','',228.6,2.1,-103.82,0,.7,'#b8860b','#111');
+// SCP-939: red, eyeless, long-legged; a jaw that opens too far. It hunts by sound, and it talks.
+const M939=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:.08,envMap:ENV,envMapIntensity:.7});
+function mk939(x,z,wp){const g=new THREE.Group(),pb=PBX(),R1=0x8a2418,R2=0x5e140c,R3=0xa83a2a,TE=0xe8dcc8;
+ pb.add(SPH,[0,.86,0],0,[.3,.27,.78],R1).add(SPH,[0,.94,-.66],0,[.25,.24,.32],R2).add(SPH,[0,.98,.7],0,[.18,.17,.32],R1);for(let i=0;i<8;i++)pb.add(BOX,[0,1.12-Math.abs(i-3.5)*.012,-.6+i*.18],[.4,0,0],[.04,.07,.05],R3);
+ [-1,1].forEach(s=>{tube(pb,[s*.22,.82,.45],[s*.36,.48,.64],.065,R2);tube(pb,[s*.36,.48,.64],[s*.3,.02,.55],.045,R1);tube(pb,[s*.22,.84,-.55],[s*.38,.55,-.88],.075,R2);tube(pb,[s*.38,.55,-.88],[s*.32,.02,-.7],.05,R1);
+  pb.add(SPH,[s*.3,.03,.6],0,[.06,.03,.1],R2).add(SPH,[s*.32,.03,-.66],0,[.06,.03,.1],R2)});tube(pb,[0,.92,-.95],[0,.55,-1.55],.045,R2);
+ const body=pb.mesh(M939);g.add(body);const head=new THREE.Group();head.position.set(0,1.05,.98);g.add(head);
+ const hp=PBX();hp.add(SPH,[0,0,.2],0,[.15,.11,.3],R1).add(SPH,[0,.06,.05],0,[.12,.08,.14],R3);for(let i=0;i<9;i++)hp.add(BOX,[-.09+i*.0225,-.07,.28+Math.sin(i/8*PI)*.1],0,[.012,.05,.012],TE);head.add(hp.mesh(M939));
+ const jaw=new THREE.Group();jaw.position.set(0,-.06,.02);head.add(jaw);const jp=PBX();jp.add(SPH,[0,-.03,.2],0,[.12,.045,.27],R2);for(let i=0;i<8;i++)jp.add(BOX,[-.08+i*.023,.02,.24+Math.sin(i/7*PI)*.09],0,[.012,.05,.012],TE);jaw.add(jp.mesh(M939));
+ g.position.set(x,0,z);scene.add(g);g.visible=false;return{g,head,jaw,x,z,wp,i:0,st:'wander',t:1,down:0,hx:x,hz:z,ry:0,mimT:6+R()*8,atk:0,ph:R()*6}}
+const DOGS=[mk939(216,-48,[[216,-48],[216,-62],[214.4,-62],[214.4,-50]]),mk939(217,-74,[[217,-76],[217,-58],[215.6,-66],[218,-70]])];
+const MIMIC=[['SGT. REYES',1.22,'Hale? Hale, over here. I made it.'],['DR. LIN',2.0,'Is someone there? Please. I’m hurt.'],['THE DOCTOR',1,'Patience, my friend.'],['OFFICER HALE',1.1,'Day eight. Day eight. Day eight.'],['KOWALSKI',1.15,'Hey. Hey, man. Over here.'],['THE DOCTOR',1,'You are not well, Officer.']];
+// =====================================================================
+// ---------- CHAPTER IV story
+// =====================================================================
+const X4={on:0,st:0,lin:0,dose:0,boss:0,stg:0,lastSf:0,noiseT:0,end:''};
+function lights4(on){L4.forEach(o=>{if(o.l)o.l.visible=on})}lights4(false);
+function startCh4(){baseSkip();assumeEarlier(4);X3.on=0;J.on=0;J.g.visible=false;BATH.style.display='none';X4.on=1;X4.st=1;lights4(true);lights3(false);
+ SAVE.ch=Math.max(SAVE.ch||1,4);saveGame();mood(.035,.04,.05,0x05070a);envScale(.6);grade([.84,.94,1.0],[1.04,1.0,.94],.12,1);MOTEK=.7;fOn=1;
+ FQ.length=0;FQ.push('“IT HAD YOUR VOICE.”','“PATIENCE, OFFICER.”','“THE PESTILENCE TAKES ANOTHER.”','“SO CLOSE TO THE DAYLIGHT.”');DEATHMSG='KILLED';
+ DOGS.forEach(d=>{d.g.visible=true;d.g.position.set(d.wp[0][0],0,d.wp[0][1]);d.x=d.wp[0][0];d.z=d.wp[0][1];d.st='wander';d.down=0});
+ DOC.g.visible=true;DOC.g.position.set(181.6,0,-38.6);DOC.walking=0;X4.dfol=1;X4.lastSf=sf;LIN.g.visible=true;X4.st=1;X4.knock=0;X4.lTalk=0;X4.lup=0;LDBOX.on=1;LDOOR.position.y=1.15;X4.dgone=0;X4.dwalk=0;X4.boss=0;X4.open=0;X4.inner=0;INNER.position.y=8.9;INBOX.on=0;OUTER.position.y=3;OUTBOX.on=1;DAYL.intensity=0;ZED.forEach(z=>z.g.visible=false);
+ P.set(182.6,0,-40.6);yaw=-PI/2;pitch=0;S('lift',183,-40);shk=.05;chap('CHAPTER IV','GATE B');obj('Follow the archive corridor');checkpoint('c4',()=>{});XWPF=wp4;
+ setTimeout(()=>dsay([['Heavy Containment. Gate B is at the far end, past the kennels.',3.8],['It still has power. The only door on this site that does.',3.4],['Stay close to me, my friend. We are nearly home.',3.2]]),1600)}
+function wp4(){if(!X4.on||ph!==2)return null;if(X4.st===1)return[200,1.5,-38.4];if(X4.st===2)return[200,1.5,-38.4];if(X4.st===3)return[201,1.2,-33.6];if(X4.st===4)return[216,1.4,-80];if(X4.st===5)return[DOC.g.position.x,1.9,DOC.g.position.z];if(X4.st===6)return[209.3,1.3,-91];
+ if(X4.boss&&X4.stg===1){let b=null,bd=1e9;RELAY.forEach(r=>{if(r.done)return;const d=Math.hypot(r.x-P.x,r.z-P.z);if(d<bd){bd=d;b=r}});return b?[b.x,1.6,b.z]:null}
+ if(X4.boss&&X4.stg===2)return inAir(DOC.g.position.x,DOC.g.position.z)?[228.6,1.4,-103.4]:[221,1.5,-107];return null}
+const inAir=(x,z)=>x>216.3&&x<225.7&&z>-109.7&&z<-104.3;
+// the Doctor walks with you, a step behind
+function docFollow(dt){if(!X4.dfol||!DOC.g.visible)return;const d=DOC.g.position,dd=Math.hypot(P.x-d.x,P.z-d.z);
+ if(dd>2.6){const a=Math.atan2(d.x-P.x,d.z-P.z);DOC.tx=P.x+Math.sin(a)*1.9;DOC.tz=P.z+Math.cos(a)*1.9;DOC.sp=dd>6?2.4:1.4;const ox=d.x,oz=d.z;moveTo(DOC,dt);if(!free(d.x,d.z,.3)){d.x=ox;d.z=oz}}else{walkAnim(DOC,dt,false);faceT2(DOC,P.x,P.z,dt)}}
+// ---------- Dr. Lin
+function lsay(L,done){say2('DR. LIN',2.0,L,[201.3,-33.6],done)}
+function linTick(){if(X4.st===1&&P.x>194){X4.st=2;X4.dfol=0;DOC.tx=193.5;DOC.tz=-40;DOC.sp=1.3;X4.dwalk=1;dsay([['Records. Someone is still in there; I can hear her heart.',3.4],['She will not open the door for me. Try. I will wait here.',3.4]],()=>obj('Knock on Dr. Lin’s door'))}}
+it({x:200,z:-38.6,c:()=>X4.on&&X4.st===2&&!X4.knock,t:'Knock on the door',f(){X4.knock=1;S('thud',200,-38,.6);setTimeout(()=>S('thud',200,-38,.6),280);
+ setTimeout(()=>lsay([['…Who is it?',1.4],['Is he with you? The tall one?',2.2]],()=>ask([{t:'He’s down the hall. He can’t hear us.',id:'a'},{t:'I’m alone.',id:'b'},{t:'Dr. Lin, it’s Officer Hale. Post 4-B.',id:'c'}],id=>{
+  lsay(id==='b'?[['…Liar. I can see his shadow on the floor from here.',3.2],['Get in. Quickly. Before he changes his mind.',2.8]]:[['Hale. The night guard.',1.8],['Get in. Quickly.',1.6]],()=>{LDBOX.on=0;X4.lup=1;S('door',200,-38,.4);X4.st=3;obj('Talk to Dr. Lin')})})),900)}});
+it({x:201,z:-34.4,c:()=>X4.on&&X4.st===3&&!X4.lTalk,t:'Talk to Dr. Lin',f(){X4.lTalk=1;linTalk()}});
+function linTalk(){const d=SAVE.doses||0;
+ lsay([['You’ve been with him this whole time. Walking next to him.',3.4]].concat(d>0?[['How many times has he “treated” you?',2.6],[d===1?'Once. All right. Listen to me: not one more.':'Twice. God. Listen to me very carefully: not one more.',3.8],['Every dose takes a little of you. The third one takes the rest.',3.8]]:[['He hasn’t injected you? Good. Don’t let him. Not once.',3.4]]),()=>
+ lsay([['Day zero, 02:09. I was on the power board. The Sector 4 backup didn’t fail.',4.2],['Someone opened the breaker in B-2 by hand. Every lock in the wing dropped open.',4.2],['Here. It’s all in the log.',2]],()=>{SAVE.ev=SAVE.ev||{};SAVE.ev.lin=1;saveGame();
+  paper('DR. M. LIN · POWER BOARD LOG · DAY 0','<p><b>02:09:12</b> SECTOR 4 BACKUP: manual disconnect at panel B-2/4. No credential. No maintenance order.</p><p><b>02:09:40</b> Wing B cell locks: FAIL-SAFE OPEN (fire protocol). Includes 049, 457, 1048, 939, 372.</p><p><b>02:10</b> CAM 6 still: tall figure at panel B-2. Beaked mask. One gloved hand on the breaker.</p><p>He wanted the doors open. He wanted <i>patients</i>.</p>');sub('Evidence: Dr. Lin’s power log.',3);setTimeout(linPlan,3400)}))}
+function linPlan(){const ok=SAVE.beacon,ev=evCount();
+ lsay([['Gate B has an airlock. Two blast doors.',2.6],['Get him between them, drop the inner door, and he’s sealed. Epsilon-11 takes him through the outer one.',4.8]].concat(ok?[['You have Reyes’s beacon? Then call them in: all three relay masts in the gate hall.',4.2],['Then you lock him in. If you can get him to stand still long enough.',3.6]]:[['But nobody’s coming unless someone calls them. Without a beacon code…',3.8],['Then do whatever he says. Get out alive. Live with it.',3.2]]),()=>
+ ask([{t:'Come with me.',id:'a'},{t:'Thank you, Doctor Lin.',id:'b'},{t:'He’s helped me. Every time.',id:'c'}],id=>lsay({a:[['No. He’d smell me before we reached the door. I’ll wait for the MTF.',3.8]],b:[['Don’t thank me. Just don’t let him out.',2.6]],c:[['That’s how he does it. He helps. He helps you right up until you’re his.',4]]}[id],()=>{
+  X4.st=4;obj('Go through the kennels to Gate B');checkpoint('kennel',()=>{dogReset()});
+  setTimeout(()=>dsay([['Ah. There you are.',1.8],['The kennels are ahead. Something lives in there that speaks with borrowed mouths.',4.2],['It hunts by sound. Walk softly. Crouch. I will go around and meet you at the gate.',4.4]],()=>{X4.dgone=1;DOC.tx=182;DOC.tz=-40;DOC.sp=1.6;X4.dwalk=1}),1200)})))}
+// ---------- the kennels: SCP-939
+function dogReset(){DOGS.forEach(d=>{d.x=d.wp[0][0];d.z=d.wp[0][1];d.st='wander';d.i=0;d.down=0;d.t=1;d.g.visible=true});HP=100}
+function noise4(x,z,r){DOGS.forEach(d=>{if(d.down>0)return;if(Math.hypot(d.x-x,d.z-z)<r&&d.st!=='lunge'&&d.st!=='bite'){d.st='hunt';d.hx=x;d.hz=z;d.t=6}})}
+function dogStep(d,tx,tz,sp,dt){const dx=tx-d.x,dz=tz-d.z,l=Math.hypot(dx,dz);if(l<.15)return true;const st=Math.min(l,sp*dt),nx=d.x+dx/l*st,nz2=d.z+dz/l*st;if(free(nx,d.z,.45))d.x=nx;if(free(d.x,nz2,.45))d.z=nz2;
+ let a=Math.atan2(dx,dz)-d.ry;a=Math.atan2(Math.sin(a),Math.cos(a));d.ry+=a*Math.min(1,dt*6);return false}
+function dogTick(d,dt){const g=d.g;if(!g.visible)return;d.t-=dt;const pd=Math.hypot(P.x-d.x,P.z-d.z);let mv=0;
+ if(d.down>0){d.down-=dt;g.rotation.z+=(1.3-g.rotation.z)*Math.min(1,dt*6);g.position.y=-.3;if(d.down<=0){g.rotation.z=0;g.position.y=0;d.st='wander';S('growl',d.x,d.z,.6)}return}
+ if(d.st==='wander'){const w=d.wp[d.i];if(dogStep(d,w[0],w[1],1.15,dt)){if(d.t<=0){d.i=(d.i+1)%d.wp.length;d.t=1.5+R()*2}}else mv=1.15}
+ else if(d.st==='hunt'){if(dogStep(d,d.hx,d.hz,3.3,dt)){d.st='sniff';d.t=3}else mv=3.3}
+ else if(d.st==='sniff'){d.head.rotation.y=Math.sin(gt*3)*.5;if(d.t<=0){d.st='wander';d.head.rotation.y=0}}
+ else if(d.st==='lunge'){if(d.t>0){d.jaw.rotation.x=.9}else{dogStep(d,P.x,P.z,8,dt);mv=8;if(pd<1.15&&iF<=0){hurt(32,d.x,d.z);S('snap',d.x,d.z);S('growl',d.x,d.z);shk=.18;d.st='recover';d.t=1.6}if(d.t<-.45){d.st='recover';d.t=1}}}
+ else if(d.st==='recover'){d.jaw.rotation.x*=.9;if(d.t<=0){d.st='hunt';d.hx=P.x;d.hz=P.z;d.t=4}}
+ if((d.st==='hunt'||d.st==='sniff')&&pd<2.2&&(sm.length()>.6&&!crouchOn()||pd<1.2)){d.st='lunge';d.t=.45;S('growl',d.x,d.z,.9)}
+ d.ph+=dt*(mv>2?11:mv?5:1);g.position.set(d.x,mv?Math.abs(Math.sin(d.ph))*.05:0,d.z);g.rotation.y=d.ry;g.rotation.x=mv>2?.06:0;d.head.rotation.x=Math.sin(d.ph*.5)*.08;if(d.st!=='lunge')d.jaw.rotation.x=.12+Math.max(0,Math.sin(gt*1.3+d.ph))*.15;
+ if(mv&&R()<dt*(mv>2?6:2))S('step',d.x,d.z,.5);
+ // the mimicry
+ d.mimT-=dt;if(d.mimT<=0&&pd<24&&sT<=0&&!DQ){d.mimT=9+R()*9;const m=MIMIC[(R()*MIMIC.length)|0];SPK=m[0];VP=m[1];sub('??? ('+m[0]+'’s voice): “'+m[2]+'”',3.2);try{voice(2.4,d.x,d.z)}catch(e){}VP=1;S('growl',d.x,d.z,.25)}}
+XHIT.push((o,d,maxD)=>{if(!X4.on)return false;for(const g of DOGS){if(!g.g.visible||g.down>0)continue;const t=sphereHit(o,d,maxD,new V3(g.x,.9,g.z),.55);if(t>=0){g.down=16;g.st='down';hm=1;sh++;S('growl',g.x,g.z,.8);burst(o.clone().addScaledVector(d,t),new V3(0,1,0),[.6,.1,.08],12,2,.4);noise4(g.x,g.z,10);return true}}return false});
+function kennelNoise(dt){if(X4.st<4||X4.st>5)return;X4.noiseT-=dt;if(X4.noiseT<=0){X4.noiseT=.25;const v=sm.length();if(v>.6){noise4(P.x,P.z,crouchOn()?1.3:v>4.5?12:5.5)}}if(sf!==X4.lastSf){X4.lastSf=sf;noise4(P.x,P.z,15)}}
+// ---------- the gate hall
+function gateTick(){if(X4.st===4&&P.z<-81.5){X4.st=5;DOGS.forEach(d=>{if(d.st!=='down'){d.st='wander'}});checkpoint('gate',()=>{});DOC.g.visible=true;DOC.g.position.set(211,0,-90.2);X4.dfol=0;X4.dwalk=0;
+  setTimeout(()=>dsay([['You see? Daylight is only a door away.',2.8],['Come here, my friend. Let me look at you, one last time.',3.4]],dose3),600)}}
+function dose3(){dsay([['The air outside is thick with the Pestilence. You would not last an hour in it.',4.2],['One final dose, and you will never be afraid again.',3.4]],()=>ask([{t:'Do it.',id:'yes',bond:1},{t:'I trust you, Doctor.',id:'yes2',bond:2},{t:'No. I’m fine.',id:'no',bond:-1},{t:'Lin said the third one takes the rest of me.',id:'lin',bond:-2}].filter(o=>o.id!=='lin'||SAVE.ev&&SAVE.ev.lin),id=>{
+ if(id==='yes'||id==='yes2'){SAVE.doses=(SAVE.doses||0)+1;SAVE.dose3=1;saveGame();HP=100;setTimeout(()=>{S('click');flashW();sub('A sting. Then a great, warm quiet.',3)},400);if(SAVE.doses>=3)grade([.95,.95,.95],[1.1,1.04,.95],.65,1.08);setTimeout(()=>dsay([['There. Now. The controls.',2.2]],toConsole),3200)}
+ else{SAVE.dose3=0;saveGame();dsay(id==='lin'?[['Doctor Lin.',1.4],['…She is unwell. She has been for a very long time.',3.4],['The controls, Officer.',2]]:[['As you wish. The controls, then.',2.6]],toConsole)}}))}
+function toConsole(){X4.st=6;obj('Use the Gate B controls');X4.dwalk=1;DOC.tx=212.4;DOC.tz=-92.6;DOC.sp=1.2}
+it({x:209.6,z:-91,c:()=>X4.on&&X4.st===6,t:'Use the Gate B controls',f(){X4.st=7;gateChoice()}});
+function gateChoice(){const zombie=(SAVE.doses||0)>=3,canB=SAVE.beacon&&evCount()>=3;
+ if(zombie){dsay([['Open it, my friend.',1.8]],()=>ask([{t:'Yes, Doctor.',id:'a'},{t:'Yes, Doctor.',id:'b'},{t:'Yes, Doctor.',id:'c'}],()=>endingOpen('zombie')));return}
+ dsay([['Open it, my friend. We walk out together. Into the daylight.',3.6]],()=>{const o=[{t:'(Open Gate B.)',id:'open'}];if(canB)o.push({t:'No. You’re not leaving, Doctor.',id:'betray'});else o.push({t:'(You can’t stop him. You have no beacon and not enough proof.)',id:'cant'});
+  ask(o,id=>{if(id==='cant'){sub('Lin was right. Nobody is coming.',2.4);setTimeout(()=>ask([{t:'(Open Gate B.)',id:'open'}],()=>endingOpen('bad')),2400);return}if(id==='open')endingOpen('bad');else boss4Start()})})}
+// =====================================================================
+// ---------- CHAPTER IV BOSS · SCP-049 · THE DOCTOR (only if you betray him)
+//  I   his patients hold you while you transmit the beacon from three relays
+//  II  him alone: one touch kills. Lure him into the airlock and drop the inner door
+//  III hold the hall until Epsilon-11 breaches
+// =====================================================================
+const ZED=[];
+function zSpawn(n){ZED.forEach(z=>{z.g.visible=false});ZED.length=0;const names=[['KOWALSKI',0xd8d8d0,{coatLong:1,hair:0x2a2018}],['BRANDT',0x2a3448,{cap:1}],['DR. ABARA',0xd8d8d0,{coatLong:1}],['ORTIZ',0x2a3448,{cap:1}],['DR. HALL',0xd8d8d0,{coatLong:1,hair:0x4a3020}],['PELL',0x4a5a3a,{pants:0x3a4a2a,hair:0x3a2a1a}]];
+ if(SAVE.reyes==='tell')names.unshift(['SGT. REYES',0x2a3448,{cap:1,hair:0x1a1410}]);
+ for(let i=0;i<n;i++){const q=names[i%names.length];let z=ZPOOL[i];if(!z){z=cured(0,0,q[1],q[0],q[2]);ZPOOL[i]=z}z.g.visible=true;z.g.position.set(208+i*4.2,0,-81.5-(i%2));z.g.rotation.set(0,PI,0);z.rig.body.rotation.x=0;z.rig.body.position.y=0;z.down=0;z.at=1;z.sp=1.25+(i%3)*.15;z.del=i*.8;ZED.push(z)}}
+const ZPOOL=[];
+function zTick(z,dt){if(!z.g.visible)return;const g=z.g.position,r=z.rig;if(z.del>0){z.del-=dt;walkAnim(z,dt,false);return}
+ if(z.down>0){z.down-=dt;r.body.rotation.x+=(-1.45-r.body.rotation.x)*Math.min(1,dt*6);r.body.position.y=.12;if(z.down<=0){S('creak',g.x,g.z,.3)}return}
+ r.body.rotation.x*=.85;r.body.position.y*=.85;const d=Math.hypot(P.x-g.x,P.z-g.z);
+ if(d>.85){z.tx=P.x;z.tz=P.z;const ox=g.x,oz=g.z;moveTo(z,dt,false);if(!free(g.x,g.z,.3)){g.x=ox;g.z=oz;g.x+=(R()-.5)*.05}z.at=Math.min(z.at,.6)}
+ else{faceT2(z,P.x,P.z,dt);z.armsBusy=1;r.aL.rotation.x+=(-1.5-r.aL.rotation.x)*dt*8;r.aR.rotation.x+=(-1.5-r.aR.rotation.x)*dt*8;z.at-=dt;if(z.at<=0){z.at=1.15;hurt(11,g.x,g.z);S('thud',g.x,g.z,.6)}walkAnim(z,dt,false);return}
+ z.armsBusy=0}
+XHIT.push((o,d,maxD)=>{if(!X4.boss)return false;for(const z of ZED){if(!z.g.visible||z.down>0||z.del>0)continue;const g=z.g.position,t=sphereHit(o,d,maxD,new V3(g.x,1.2,g.z),.38);if(t>=0){z.down=14;hm=1;sh++;S('thud',g.x,g.z,.5);burst(o.clone().addScaledVector(d,t),new V3(0,1,0),[.6,.6,.55],8,1.6,.3);return true}}
+ if(X4.stg===2||X4.stg===3){const g=DOC.g.position,t=sphereHit(o,d,maxD,new V3(g.x,1.35,g.z),.45);if(t>=0){hm=1;sh++;DOC.stag=1.3;S('hit',g.x,g.z);burst(o.clone().addScaledVector(d,t),new V3(0,1,0),[.2,.18,.15],10,1.6,.3);if(R()<.3)dsay([[['Rude.','Must you?','That will not help you.','Hold still, Officer.'][(R()*4)|0],1.4]]);return true}}return false});
+const B4={air:0,closeT:0,hold:0};
+function b4Restore(n){return()=>{HP=100;X4.boss=1;X4.stg=n;XM.on=1;XM.stage=n;XM.root=[0,36.7,34.6,32.7][n];$('bb').style.display='block';$('bf').style.width='100%';DOC.stag=0;B4.air=0;B4.closeT=0;INNER.position.y=8.9;INBOX.on=0;X4.dwalk=0;
+ if(n===1){RELAY.forEach(r=>{r.done=0;r.l.material.color.setHex(0x330000)});zSpawn(5);DOC.g.position.set(213,0,-95);$('bn').textContent='SCP-049-2 · HIS PATIENTS';obj('Transmit the beacon from the relay masts (0/3)')}
+ if(n===2){ZED.forEach(z=>z.g.visible=false);DOC.g.visible=true;DOC.g.position.set(210,0,-86);$('bn').textContent='SCP-049 · THE DOCTOR';obj('Lure him into the airlock. Drop the inner door from the panel');DEATHMSG='CURED'}
+ if(n===3){INNER.position.y=3;INBOX.on=1;DOC.g.position.set(221,0,-107);zSpawn(4);B4.hold=45;$('bn').textContent='HOLD UNTIL EPSILON-11 BREACHES';obj('Survive until the MTF breach (45)')}}}
+function boss4Start(){X4.st=8;dsay([['…',1],['I see.',1.4],['Doctor Lin. And the sergeant’s little radio.',2.8],['How very disappointing.',2],['My friends. Please, hold him still.',2.6]],()=>{chap('SCP-049','THE PLAGUE DOCTOR');checkpoint('b41',b4Restore(1));b4Restore(1)()})}
+RELAY.forEach((r,i)=>it({x:r.x,z:r.z,c:()=>X4.boss&&X4.stg===1&&!r.done,t:'Transmit the beacon',hold:2.4,onHold(){if(R()<.15)S('stat',r.x,r.z,.3)},f(){r.done=1;r.l.material.color.setHex(0x20ff40);S('alarm',r.x,r.z,.3);const n=RELAY.filter(q=>q.done).length;obj('Transmit the beacon from the relay masts ('+n+'/3)');$('bf').style.width=((3-n)/3*100)+'%';
+ if(n>=3)stage4b();else sub('Relay '+n+' of 3 transmitting.',2)}}));
+function stage4b(){$('bb').style.display='none';XM.on=0;cutscene({dur:11,cam:[[0,[P.x,1.7,P.z],[DOC.g.position.x,1.6,DOC.g.position.z]],[5,[214,2.2,-88],[DOC.g.position.x,1.8,DOC.g.position.z]],[11,[215,2,-87],[DOC.g.position.x,1.9,DOC.g.position.z]]],
+ ev:[[.3,()=>{S('stat');say2('EPSILON-11 (RADIO)',1.08,[['Beacon received. This is Nine-Tailed Fox. Breaching the Gate B outer door in ninety seconds.',4.4],['If you can seal him in that airlock, Officer, do it.',3]])}],[7.5,()=>{DOC.g.visible=true;ZED.forEach(z=>{z.down=999});dsay([['Enough. Rest, my friends.',2]])}],[9,()=>dsay([['I will treat him myself.',2]])]],
+ done:()=>{checkpoint('b42',b4Restore(2));b4Restore(2)()}})}
+// the panel: drop the inner door while he is inside and you are not
+it({x:228.6,z:-103.1,c:()=>X4.boss&&X4.stg===2&&!B4.closeT,t:'Drop the inner door',f(){if(!inAir(DOC.g.position.x,DOC.g.position.z)){S('click',228.6,-103.6);sub('He isn’t in the airlock.',1.6);return}B4.closeT=.001;S('alarm',221,-104,.6);S('door',221,-104);sub('The inner door is coming down!',2)}});
+function doc4Tick(dt){if(!X4.boss||X4.stg<2||!DOC.g.visible)return;const d=DOC.g.position,pd=Math.hypot(P.x-d.x,P.z-d.z);if(DOC.stag>0){DOC.stag-=dt;DOC.rig.body.rotation.x=-.25*Math.min(1,DOC.stag);walkAnim(DOC,dt,false);return}DOC.rig.body.rotation.x*=.9;
+ if(X4.stg===3){DOC.tx=clamp(P.x,217,225);DOC.tz=-104.8;DOC.sp=1;if(moveTo(DOC,dt))faceT2(DOC,P.x,P.z,dt);return}
+ const closing=B4.closeT>0;if(closing){DOC.tx=clamp(P.x,217,225);DOC.tz=-103;DOC.sp=1.7}else{DOC.lun=(DOC.lun||3)-dt;const lunge=DOC.lun<0&&DOC.lun>-.9;if(DOC.lun<-.9)DOC.lun=3+R()*2;
+  if(DOC.lun<.6&&DOC.lun>0){DOC.armsBusy=1;DOC.rig.aR.rotation.x+=(-2.2-DOC.rig.aR.rotation.x)*dt*6}else DOC.armsBusy=0;DOC.tx=P.x;DOC.tz=P.z;DOC.sp=lunge?3.6:1.55}
+ const ox=d.x,oz=d.z;moveTo(DOC,dt,DOC.sp>2);if(!free(d.x,d.z,.3)&&!(inAir(d.x,d.z)||inAir(ox,oz))){d.x=ox;d.z=oz}
+ if(pd<.95&&iF<=0&&!closing&&ph===2&&!dead){DEATHMSG='CURED';flashW();die('HE TOUCHED YOU')}
+ if(closing){B4.closeT+=dt;const u=Math.min(1,B4.closeT/2.6);INNER.position.y=8.9-5.9*u;
+  if(!inAir(d.x,d.z)&&u<.85){B4.closeT=0;INNER.position.y=8.9;sub('He slipped out! Get him back in!',2.4);dsay([['Did you think I would simply stand there?',2.6]]);return}
+  if(u>=1){INBOX.on=1;B4.closeT=-1;if(inAir(P.x,P.z)){DEATHMSG='CURED';die('SEALED IN WITH HIM')}else stage4c()}}}
+function stage4c(){$('bb').style.display='none';XM.on=0;cutscene({dur:8,cam:[[0,[221,2,-100],[221,2,-104]],[8,[221,2.4,-98],[221,2.2,-104]]],ev:[[.3,()=>{S('boom',221,-104);shk=.3;sub('BOOM. Sealed.',1.4)}],[2,()=>dsay([['Officer. Open this door.',2],['You are making a terrible mistake. Out there, they are all so sick.',3.8]])],[6.5,()=>{sub('Something hammers the inner door from the hall side… no. From behind you. His patients are still coming.',3.4)}]],
+ done:()=>{checkpoint('b43',b4Restore(3));b4Restore(3)()}})}
+function boss4Tick(dt,ctrl){if(!X4.boss)return;ZED.forEach(z=>zTick(z,dt));doc4Tick(dt);xMusic(dt);if(ctrl&&(xhb-=dt)<0){xhb=.3+(HP/100)*.7;if(HP<55)S('heart')}
+ if(X4.stg===3&&ctrl){B4.hold-=dt;$('bf').style.width=(B4.hold/45*100)+'%';obj('Survive until the MTF breach ('+Math.ceil(Math.max(0,B4.hold))+')');if(R()<dt*.35)S('thud',221,-104,.5);
+  if(B4.hold<=0){X4.boss=0;endingGood()}}}
+// =====================================================================
+// ---------- THE ENDINGS
+// =====================================================================
+const ENDS={bad:['THE DOCTOR WALKS','He walked out of Site-19 at 06:12, into the first daylight he had seen in sixty years. The Foundation never found him.<br><br><i>“There is so much work to do, my friend.”</i>'],
+ zombie:['CURED','You opened the gate. You held the door for him. You don’t remember why it ever mattered.<br><br>You feel wonderful. You feel <i>well</i>.'],
+ good:['RECONTAINED','Epsilon-11 recontained SCP-049 at 06:40. Officer R. Hale was found sitting on the Gate B ramp, watching the sun come up.<br><br>He did his job.']};
+function doorsOpen(both){X4.open=both?2:1;X4.inner=1;S('door',221,-104);S('alarm',221,-104,.5);setTimeout(()=>{if(both){S('door',221,-110);S('boom',221,-110,.3)}},1500)}
+function dayTick(dt){if(!X4.open)return;if(X4.inner&&INNER.position.y<8.9)INNER.position.y=Math.min(8.9,INNER.position.y+dt*2.4);if(X4.open===2&&OUTER.position.y<8.9){OUTER.position.y+=dt*1.6;OUTBOX.on=0;const u=clamp((OUTER.position.y-3)/5.9,0,1);DAYL.intensity=u*3.2;AMB.intensity=.035+u*.35;HEMI.intensity=.04+u*.5;scene.fog.color.setRGB(.05+u*.5,.06+u*.5,.08+u*.48);scene.fog.density=.05-u*.03}}
+function endingOpen(kind){X4.st=9;INBOX.on=0;doorsOpen(true);X4.dwalk=0;MOTEK=0;if(kind==='zombie')grade([.9,.9,.9],[1.12,1.06,.96],.8,1.15);else grade([.92,.94,1.0],[1.12,1.04,.9],.15,1.05);
+ cutscene({dur:16,cam:[[0,[214,1.7,-92],[221,2,-104]],[5,[219,1.7,-98],[221,1.8,-110]],[10,[221,1.7,-101],[221,1.9,-114]],[16,[221,1.6,-104.5],[221,2,-120]]],
+  ev:[[.3,()=>{DOC.g.visible=true;DOC.g.position.set(219,0,-99);DOC.tx=221;DOC.tz=-116;DOC.sp=.9;X4.dwalk=1}],[3,()=>dsay(kind==='zombie'?[['Come, my friend. Walk with me.',2.4]]:[['Thank you, Officer. Truly.',2.4]])],
+   [7,()=>{if(kind==='zombie'){zSpawn(4);ZED.forEach((z,i)=>{z.del=0;z.g.position.set(217+i*1.4,0,-96);z.tx=218+i*1.2;z.tz=-118;z.sp=.8;z.walkOut=1})}}],[9.5,()=>dsay(kind==='zombie'?[['There is so much work to do.',2.4]]:[['Out there, they are all so very sick.',2.8],['There is so much work to do.',2.4]])]],
+  done:()=>endScreen(kind)})}
+function endingGood(){X4.st=9;X4.open=2;X4.inner=0;S('door',221,-110);S('boom',221,-110,.6);MOTEK=0;grade([.9,.95,1.0],[1.1,1.05,.92],.05,1.08);ZED.forEach(z=>{z.down=999});
+ const MTF=[0,1,2].map(i=>{const m=cured(219+i*1.2,-115-i*.6,0x1a1d20,'EPSILON-11',{cap:1,pants:0x1a1d20,skin:'alive'});m.g.visible=true;m.tx=219+i*1.2;m.tz=-111.5+i*.4;m.sp=1.4;m.armsBusy=1;m.rig.aL.rotation.x=-1.3;m.rig.aR.rotation.x=-1.4;return m});X4.mtf=MTF;
+ cutscene({dur:16,cam:[[0,[221,2,-99],[221,2,-108]],[6,[223,1.8,-101],[220,1.6,-108]],[11,[222,1.7,-101.5],[221,1.6,-107]],[16,[221,1.7,-100],[221,2.2,-110]]],
+  ev:[[.4,()=>{sub('The outer door grinds open. Daylight. Torches. Black armour.',3.4)}],[3,()=>say2('EPSILON-11',1.08,[['SCP-049, on your knees. Hands where we can see them.',3.4]],[221,-110])],[7,()=>dsay([['…Of course.',1.6],['Officer. When the Pestilence comes for you, and it will, remember that I offered.',4.4]])],
+   [12.5,()=>{sub('They lead him out in restraints. He doesn’t look back.',3.4);DOC.tx=221;DOC.tz=-118;DOC.sp=.7;X4.dwalk=1}]],
+  done:()=>endScreen('good')})}
+function endScreen(kind){X4.on=0;X4.boss=0;XM.on=0;SAVE.endings=SAVE.endings||{};SAVE.endings[kind]=1;SAVE.ending=kind;SAVE.ch4={deaths,time:Math.floor(gt-tStart)};saveGame();const E=ENDS[kind];
+ cine([[600,'','#000'],[6200,'<div style="max-width:700px;margin:auto"><small style="font:12px monospace;letter-spacing:.5em;color:#f65">ENDING</small><br><span style="font-size:clamp(28px,5vw,52px);letter-spacing:.2em">'+E[0]+'</span></div>','#000'],[7600,'<div style="max-width:640px;margin:auto;font-size:clamp(17px,2.4vw,23px);line-height:1.6">'+E[1]+'</div>','#000']],()=>{
+  const got=Object.keys(SAVE.endings).length,names={bad:'The Doctor Walks',zombie:'Cured',good:'Recontained'};
+  chapterScreen('SITE-19 · EIGHT DAYS · THE END',E[0],[['Time (Chapter IV)',tStr(Math.floor(gt-tStart))],['Doses accepted',(SAVE.doses||0)+' / 3'],['Evidence against him',evCount()+' / 4'],['Beacon code',SAVE.beacon?'Yes':'No'],['Sgt. Reyes',SAVE.reyes==='tell'?'Cured':SAVE.reyes?'Escaped':'—'],['The Doctor’s regard',bondTxt()],['Endings found',got+' / 3 · '+Object.keys(SAVE.endings).map(k=>names[k]).join(', ')]].concat(got<3?[['Hint',!SAVE.endings.good?'Refuse his medicine. Gather the proof. Send Reyes away with the beacon.':!SAVE.endings.zombie?'Accept every dose he offers.':'Open the gate for him.']]:[]),null)})}
+function x4Tick(dt,ctrl){if(!X4.on&&!X4.open)return;docFollow(dt);linTick();if(X4.lup&&LDOOR.position.y<3.4)LDOOR.position.y+=dt*1.6;
+ if(X4.dwalk&&DOC.g.visible){const ar=moveTo(DOC,dt);if(ar){if(X4.dgone&&X4.st===4){DOC.g.visible=false;X4.dgone=0}faceT2(DOC,P.x,P.z,dt)}}
+ if(X4.st>=4&&X4.st<=5)DOGS.forEach(d=>dogTick(d,dt));kennelNoise(dt);if(ctrl)gateTick();boss4Tick(dt,ctrl);dayTick(dt);
+ ZED.forEach(z=>{if(z.walkOut&&z.g.visible)moveTo(z,dt)});if(X4.mtf)X4.mtf.forEach(m=>moveTo(m,dt));
+ if(X4.on&&P.x>200&&(X4.ct=(X4.ct||0)-dt)<0){X4.ct=.25;CONS.forEach((s,i)=>{const x=s.x;x.fillStyle='#03100a';x.fillRect(0,0,128,96);x.fillStyle='#50ff80';x.font='bold 11px monospace';x.fillText(['GATE B · AIRLOCK 2','RELAY NET','EXT. PRESSURE'][i],6,14);
+  if(i===0){x.fillText('INNER: '+(INBOX.on?'SEALED':'OPEN'),6,40);x.fillText('OUTER: '+(X4.open===2?'OPEN':'SEALED'),6,58);if(Math.sin(gt*5)>0){x.fillStyle='#ff4030';x.fillText('AWAITING COMMAND',6,82)}}
+  else if(i===1){RELAY.forEach((r,k)=>{x.fillStyle=r.done?'#50ff80':'#ff4030';x.fillText('MAST '+(k+1)+': '+(r.done?'TX':'IDLE'),6,36+k*16)})}
+  else{for(let k=0;k<10;k++){x.fillRect(8+k*11,86-(30+Math.sin(gt*2+k)*20),7,30+Math.sin(gt*2+k)*20)}}s.t.needsUpdate=true})}}
+XT.push(x4Tick);
+
+// =====================================================================
+// ---------- glue: menu, chapter select, continue buttons, touch crouch, the per-frame hook, start-up
+// =====================================================================
+function boot(fn){if(ph)return;$('chs').classList.add('off');try{AU().resume()}catch(e){}initLoops();$('st').classList.add('off');try{cv.requestPointerLock()}catch(e){}startAmb();if(isTouch)setupTouch();fn()}
+{const mn=$('mn');$('go2').style.display='none';$('go3').style.display='none';
+ const mk=(id,txt)=>{const b=document.createElement('b');b.className='mi';b.id=id;b.textContent=txt;mn.insertBefore(b,$('mo'));return b};
+ const sc=SAVE.ch||1;if(sc>=2){const c=mk('gcont','CONTINUE');c.style.borderColor='#a33';c.onclick=()=>{if(sc>=4)boot(startCh4);else if(sc>=3)boot(startCh3);else{$('go2').onclick()}}}
+ mk('gch','CHAPTERS').onclick=()=>$('chs').classList.remove('off');
+ const pnl=document.createElement('div');pnl.className='o off';pnl.id='chs';pnl.style.cssText='z-index:12;cursor:default';
+ const CH=[['1','I · DAY EIGHT','Security Wing · SCP-457'],['2','II · THE DOCTOR’S ROUNDS','The vents · the nursery'],['2b','II · LIGHT CONTAINMENT','Medical Bay · SCP-1048'],['3','III · PERIPHERAL','Maintenance tunnels · SCP-372'],['4','IV · GATE B','Kennels · SCP-939 · the gate']];
+ const E=SAVE.endings||{},nE=Object.keys(E).length;
+ pnl.innerHTML='<div class="pn" style="min-width:min(460px,90vw)"><h2>CHAPTERS</h2>'+CH.map(c=>{const reached=(parseInt(c[0])||1)<=sc;return'<div class="mi" data-c="'+c[0]+'" style="display:block;width:auto;text-align:left;margin:6px 0;font-size:15px;letter-spacing:.2em">'+c[1]+'<small style="display:block;font:11px monospace;letter-spacing:.15em;color:'+(reached?'#b8863b':'#666')+';margin-top:3px">'+c[2]+(reached?'':' · not reached yet')+'</small></div>'}).join('')+
+  '<div style="font:11px monospace;letter-spacing:.25em;color:#888;text-align:center;margin:12px 0 4px">ENDINGS FOUND · '+nE+' / 3</div><b id="chx" class="mi">BACK</b></div>';document.body.appendChild(pnl);
+ $('chx').onclick=()=>pnl.classList.add('off');
+ pnl.querySelectorAll('[data-c]').forEach(d=>d.onclick=()=>{const c=d.dataset.c;pnl.classList.add('off');if(c==='1')$('go').onclick();else if(c==='2')$('go2').onclick();else if(c==='2b')$('go3').onclick();else if(c==='3')boot(startCh3);else boot(startCh4)})}
+$('st').querySelector('p').innerHTML='An SCP Foundation story in four chapters.<br>Eight days locked in. The water is gone. Something is burning.';
+// Chapter II's end screen gets a way straight on into Chapter III
+{const _e=ch2End;ch2End=function(){_e();const pn=$('en').querySelector('.pn');if(!pn)return;const b=document.createElement('b');b.className='mi';b.textContent='CONTINUE';b.style.borderColor='#f44';pn.insertBefore(b,pn.lastElementChild);
+ b.onclick=e=>{e.stopPropagation();$('en').classList.add('off');try{cv.requestPointerLock()}catch(x){}if(isTouch)$('tp').style.display='block';startCh3()}}}
+// touch: a crouch button
+{const _st=setupTouch;setupTouch=function(){const first=!tchOn;_st();if(!first)return;const b=document.createElement('div');b.className='b';b.textContent='CROUCH';b.style.cssText='right:96px;bottom:262px;width:56px;height:56px';
+ b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();STL.crouch^=1;S('step')},{passive:false});$('tp').appendChild(b)}}
+$('ct').querySelector('.pn').insertBefore(Object.assign(document.createElement('div'),{className:'kv',innerHTML:'Crouch (quiet, harder to see)<b>C</b>'}),$('ctx'));
+// the hook: called by frame() every frame, just before the HUD marker and the render
+let _lt=performance.now();
+function xTick(dt,ctrl){const now=performance.now(),rdt=Math.min(.25,(now-_lt)/1000);_lt=now;drTick(rdt);
+ for(const f of XT){try{f(dt,ctrl)}catch(e){console.error(e);const d=$('er')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'er'}));d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99;background:#400;color:#fff;font:12px monospace;padding:6px';d.textContent='Error: '+e.message}}
+ gradeTick(dt);moteTick(dt);cullTick(dt)}
+// moving static meshes (doors, shutters, boss telegraphs) keep their cull sphere up to date
+{const _ct=cullTick;cullTick=function(dt){for(const e of CULL.list){const p=e.o.position;if(e.px===undefined){e.px=p.x;e.py=p.y;e.pz=p.z}else if(Math.abs(p.x-e.px)+Math.abs(p.y-e.py)+Math.abs(p.z-e.pz)>.3){e.x+=p.x-e.px;e.y+=p.y-e.py;e.z+=p.z-e.pz;e.px=p.x;e.py=p.y;e.pz=p.z;CULL.t=0}}_ct(dt)}}
+MOTEK=.65;applyQ();
+setTimeout(()=>{perfPass();staticMerge();cullInit()},0);
+frame();
 </script></body></html>
